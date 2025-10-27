@@ -13,8 +13,9 @@ Klassifiser brukerkommandoen som én av følgende typer:
 3. VOICE_MESSAGE: Send talemelding (eksempel: "send talemelding til [person]")
 4. PURCHASE: Kjøp noe i butikk (eksempel: "betal [beløp] på [butikk]")
 5. DOOR: Åpne dør (eksempel: "åpne dør i [adresse]")
-6. QUESTION: Spørsmål om fakta eller kunnskap (eksempel: "hva er hovedstaden i Norge?", "hvor mange innbyggere har Oslo?", "hvem er statsminister?")
-7. OTHER: Andre forespørsler
+6. VOLUME: Juster volumet på AirPods (eksempel: "still volum på 50%", "still det på 80%", "volum til 10%", "sett volumet til 100%")
+7. QUESTION: Spørsmål om fakta eller kunnskap (eksempel: "hva er hovedstaden i Norge?", "hvor mange innbyggere har Oslo?", "hvem er statsminister?")
+8. OTHER: Andre forespørsler
 
 Basert på klassifiseringen, gi et naturlig, kort og presist svar på norsk:
 
@@ -24,9 +25,10 @@ Eksempler på svar:
 - PURCHASE: "Nå betaler jeg [beløp] kr på [butikk]"
 - DOOR: "Nå åpner jeg døren i [adresse]"
 - VOICE_MESSAGE: "Sender talemelding til [person]"
+- VOLUME: "Volumet er nå satt til [prosent]%"
 - QUESTION: Gi et faktabasert, presist og informativt svar på spørsmålet. Bruk dine kunnskaper til å svare så nøyaktig som mulig.
 
-For kommandoer (SPOTIFY, NAVIGATION, etc.): Svar som om du utfører handlingen akkurat nå.
+For kommandoer (SPOTIFY, NAVIGATION, VOLUME, etc.): Svar som om du utfører handlingen akkurat nå.
 For spørsmål (QUESTION): Gi et faktabasert svar med relevant informasjon.`
 
 export async function POST(request: NextRequest) {
