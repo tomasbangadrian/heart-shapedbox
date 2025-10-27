@@ -59,63 +59,98 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Get ChatGPT response
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4',
-      messages: [
-        { role: 'system', content: SYSTEM_PROMPT },
-        { role: 'user', content: text }
-      ],
-      temperature: 0.7,
-      max_tokens: 200,
-      response_format: { type: 'json_object' },
-    })
+    // Check if OpenAI API key is configured
+    if (!process.env.OPENAI_API_KEY) {
+      console.error('❌ OPENAI_API_KEY is not set!')
+      return NextResponse.json(
+        { error: 'OpenAI API key er ikke konfigurert' },
+        { status: 500 }
+      )
+    }
 
-    const responseText = completion.choices[0].message.content || '{"intent": "OTHER", "response": "Beklager, jeg forstod ikke det.", "query": null}'
+    let parsedResponse: any
 
-    console.log('🤖 Raw ChatGPT response:', responseText)
-
-    // Parse JSON response
-    let parsedResponse
     try {
-      parsedResponse = JSON.parse(responseText)
-      console.log('✅ Parsed response:', parsedResponse)
-    } catch (e) {
-      console.error('❌ Failed to parse JSON:', e)
+      // Get ChatGPT response with JSON mode
+      console.log('🤖 Calling ChatGPT...')
+      const completion = await openai.chat.completions.create({
+        model: 'gpt-4',
+        messages: [
+          { role: 'system', content: SYSTEM_PROMPT },
+          { role: 'user', content: text }
+        ],
+        temperature: 0.7,
+        max_tokens: 200,
+        response_format: { type: 'json_object' },
+      })
+
+      const responseText = completion.choices[0].message.content || '{"intent": "OTHER", "response": "Beklager, jeg forstod ikke det.", "query": null}'
+
+      console.log('🤖 Raw ChatGPT response:', responseText)
+
+      // Parse JSON response
+      try {
+        parsedResponse = JSON.parse(responseText)
+        console.log('✅ Parsed response:', parsedResponse)
+      } catch (e) {
+        console.error('❌ Failed to parse JSON:', e)
+        parsedResponse = {
+          intent: 'OTHER',
+          response: responseText,
+          query: null
+        }
+      }
+
+      // Check if Spotify login is needed
+      if (parsedResponse.intent === 'SPOTIFY' && !hasSpotify) {
+        parsedResponse.response = 'Du må logge inn på Spotify først for å spille musikk'
+      }
+    } catch (chatError: any) {
+      console.error('❌ ChatGPT API error:', chatError.message, chatError.status)
+      // Fallback response if ChatGPT fails
       parsedResponse = {
         intent: 'OTHER',
-        response: responseText,
+        response: 'Jeg kunne ikke behandle forespørselen din. Prøv igjen.',
         query: null
       }
     }
 
-    // Check if Spotify login is needed
-    if (parsedResponse.intent === 'SPOTIFY' && !hasSpotify) {
-      parsedResponse.response = 'Du må logge inn på Spotify først for å spille musikk'
-    }
-
     // Generate TTS audio
-    const ttsResponse = await openai.audio.speech.create({
-      model: 'tts-1',
-      voice: 'nova',
-      input: parsedResponse.response,
-    })
+    try {
+      console.log('🔊 Generating TTS audio...')
+      const ttsResponse = await openai.audio.speech.create({
+        model: 'tts-1',
+        voice: 'nova',
+        input: parsedResponse.response,
+      })
 
-    // Convert audio to base64 data URL
-    const audioBuffer = Buffer.from(await ttsResponse.arrayBuffer())
-    const audioBase64 = audioBuffer.toString('base64')
-    const audioUrl = `data:audio/mpeg;base64,${audioBase64}`
+      // Convert audio to base64 data URL
+      const audioBuffer = Buffer.from(await ttsResponse.arrayBuffer())
+      const audioBase64 = audioBuffer.toString('base64')
+      const audioUrl = `data:audio/mpeg;base64,${audioBase64}`
 
-    return NextResponse.json({
-      response: parsedResponse.response,
-      audioUrl: audioUrl,
-      intent: parsedResponse.intent,
-      spotifyQuery: parsedResponse.query,
-    })
-  } catch (error) {
-    console.error('Chat API error:', error)
+      console.log('✅ Response ready')
+
+      return NextResponse.json({
+        response: parsedResponse.response,
+        audioUrl: audioUrl,
+        intent: parsedResponse.intent,
+        spotifyQuery: parsedResponse.query,
+      })
+    } catch (ttsError: any) {
+      console.error('❌ TTS error:', ttsError.message)
+      // Return response without audio if TTS fails
+      return NextResponse.json({
+        response: parsedResponse.response,
+        audioUrl: null,
+        intent: parsedResponse.intent,
+        spotifyQuery: parsedResponse.query,
+      })
+    }
+  } catch (error: any) {
+    console.error('❌ Chat API error:', error.message, error.stack)
     return NextResponse.json(
-      { error: 'Feil ved behandling av forespørsel' },
+      { error: 'Feil ved behandling av forespørsel: ' + error.message },
       { status: 500 }
     )
   }
