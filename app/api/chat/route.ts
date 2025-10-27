@@ -8,7 +8,7 @@ const openai = new OpenAI({
 const SYSTEM_PROMPT = `Du er en intelligent stemmeassistent som klassifiserer brukerkommandoer og gir passende svar.
 
 Klassifiser brukerkommandoen som én av følgende typer:
-1. SPOTIFY: Spill musikk (eksempel: "spill spotify", "spill [sang/artist]")
+1. SPOTIFY: Spill musikk (eksempel: "spill [sang]", "spill [artist]", "spill [sang] med/av [artist]", "spill [sang] på spotify")
 2. NAVIGATION: Få veibeskrivelse (eksempel: "navigasjon til [sted]", "veibeskrivelse til [adresse]")
 3. VOICE_MESSAGE: Send talemelding (eksempel: "send talemelding til [person]")
 4. PURCHASE: Kjøp noe i butikk (eksempel: "betal [beløp] på [butikk]")
@@ -24,10 +24,19 @@ Svar i følgende JSON-format:
   "query": "søkeord for Spotify (kun for SPOTIFY intent)"
 }
 
-For SPOTIFY: Ekstrahér søkeordet fra kommandoen. Eks: "spill bohemian rhapsody" -> query: "bohemian rhapsody"
+For SPOTIFY intent:
+- Ekstraher ALLTID sangtittel og artist fra kommandoen
+- Fjern ord som "spill", "på spotify", "med", "av", etc.
+- Inkluder både sang og artist i query
+- Eksempler:
+  * "spill bohemian rhapsody" -> query: "bohemian rhapsody"
+  * "spill great day for freedom med pink floyd" -> query: "great day for freedom pink floyd"
+  * "spill great day for freedom med pink floyd på spotify" -> query: "great day for freedom pink floyd"
+  * "spill the weeknd" -> query: "the weeknd"
+  * "spill comfortably numb av pink floyd" -> query: "comfortably numb pink floyd"
 
-Eksempler på svar:
-- SPOTIFY: {"intent": "SPOTIFY", "response": "Søker etter låten på Spotify", "query": "artist song"}
+Eksempler på fullstendige svar:
+- SPOTIFY: {"intent": "SPOTIFY", "response": "Søker etter låten på Spotify", "query": "song artist"}
 - NAVIGATION: {"intent": "NAVIGATION", "response": "Du er i [sted]. Gå [retning]", "query": null}
 - PURCHASE: {"intent": "PURCHASE", "response": "Nå betaler jeg [beløp] kr på [butikk]", "query": null}
 - DOOR: {"intent": "DOOR", "response": "Nå åpner jeg døren i [adresse]", "query": null}
@@ -40,6 +49,8 @@ Svar ALLTID med gyldig JSON.`
 export async function POST(request: NextRequest) {
   try {
     const { text, hasSpotify } = await request.json()
+
+    console.log('📝 User text:', text)
 
     if (!text) {
       return NextResponse.json(
@@ -62,11 +73,15 @@ export async function POST(request: NextRequest) {
 
     const responseText = completion.choices[0].message.content || '{"intent": "OTHER", "response": "Beklager, jeg forstod ikke det.", "query": null}'
 
+    console.log('🤖 Raw ChatGPT response:', responseText)
+
     // Parse JSON response
     let parsedResponse
     try {
       parsedResponse = JSON.parse(responseText)
+      console.log('✅ Parsed response:', parsedResponse)
     } catch (e) {
+      console.error('❌ Failed to parse JSON:', e)
       parsedResponse = {
         intent: 'OTHER',
         response: responseText,

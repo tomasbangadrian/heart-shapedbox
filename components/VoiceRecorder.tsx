@@ -76,8 +76,16 @@ export default function VoiceRecorder() {
 
   const handleSpotifyCommand = async (query: string) => {
     if (!spotifyAccessToken) {
+      console.log('❌ No Spotify access token')
       return 'Du må logge inn på Spotify først'
     }
+
+    if (!spotifyDeviceId) {
+      console.log('❌ No Spotify device ID - player not ready')
+      return 'Spotify Web Player er ikke klar ennå. Vent litt og prøv igjen.'
+    }
+
+    console.log('🔍 Searching Spotify for:', query)
 
     try {
       // Search for the track
@@ -88,12 +96,16 @@ export default function VoiceRecorder() {
       })
 
       if (!searchResponse.ok) {
+        const errorText = await searchResponse.text()
+        console.error('❌ Search failed:', errorText)
         return 'Kunne ikke finne låten på Spotify'
       }
 
       const track = await searchResponse.json()
+      console.log('✅ Found track:', track.name, 'by', track.artist)
 
       // Play the track
+      console.log('▶️ Playing track on device:', spotifyDeviceId)
       const playResponse = await fetch('/api/spotify/play', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -105,12 +117,15 @@ export default function VoiceRecorder() {
       })
 
       if (!playResponse.ok) {
-        return 'Kunne ikke spille låten. Sjekk at Spotify er åpen.'
+        const errorText = await playResponse.text()
+        console.error('❌ Play failed:', errorText)
+        return 'Kunne ikke spille låten. Sjekk at du har Spotify Premium.'
       }
 
+      console.log('✅ Now playing!')
       return `Nå spiller jeg ${track.name} av ${track.artist} på Spotify`
     } catch (error) {
-      console.error('Spotify command error:', error)
+      console.error('❌ Spotify command error:', error)
       return 'Noe gikk galt med Spotify'
     }
   }
@@ -160,11 +175,17 @@ export default function VoiceRecorder() {
 
       const { response, audioUrl, intent, spotifyQuery } = await chatResponse.json()
 
+      console.log('🤖 ChatGPT Response:', { intent, response, spotifyQuery })
+
       let finalResponse = response
 
       // Handle Spotify commands
       if (intent === 'SPOTIFY' && spotifyQuery) {
+        console.log('🎵 Spotify command detected, query:', spotifyQuery)
         finalResponse = await handleSpotifyCommand(spotifyQuery)
+      } else if (intent === 'SPOTIFY' && !spotifyQuery) {
+        console.log('⚠️ Spotify intent but no query extracted')
+        finalResponse = 'Jeg forstod ikke hvilken sang du vil spille. Prøv igjen.'
       }
 
       // Add assistant message
