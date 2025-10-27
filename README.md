@@ -6,7 +6,7 @@ En intelligent stemmeassistent bygget med Next.js, OpenAI Whisper, og ChatGPT. A
 
 - 🎙️ **Stemmeopptag**: Hold inne knappen for å snakke
 - 🗣️ **Speech-to-Text**: Bruker OpenAI Whisper for å konvertere tale til tekst
-- 🤖 **Intent Classification**: ChatGPT klassifiserer kommandoen din (Spotify, navigasjon, kjøp, døråpning, etc.)
+- 🤖 **Intent Classification**: ChatGPT klassifiserer kommandoen din (Spotify, navigasjon, kjøp, døråpning, spørsmål, etc.)
 - 🔊 **Text-to-Speech**: Får lydsvar tilbake med OpenAI TTS
 - 💬 **Samtalehistorikk**: Se alle dine tidligere kommandoer og svar
 
@@ -19,6 +19,7 @@ Assistenten kan håndtere:
 - **Kjøp**: "Betal [beløp] på [butikk]"
 - **Døråpning**: "Åpne dør i [adresse]"
 - **Talemelding**: "Send talemelding til [person]"
+- **Spørsmål**: "Hva er hovedstaden i Norge?", "Hvor mange innbyggere har Oslo?", "Hvem er statsminister?"
 - Og mer!
 
 ## 🚀 Kom i gang

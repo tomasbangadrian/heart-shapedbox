@@ -13,9 +13,10 @@ Klassifiser brukerkommandoen som én av følgende typer:
 3. VOICE_MESSAGE: Send talemelding (eksempel: "send talemelding til [person]")
 4. PURCHASE: Kjøp noe i butikk (eksempel: "betal [beløp] på [butikk]")
 5. DOOR: Åpne dør (eksempel: "åpne dør i [adresse]")
-6. OTHER: Andre forespørsler
+6. QUESTION: Spørsmål om fakta eller kunnskap (eksempel: "hva er hovedstaden i Norge?", "hvor mange innbyggere har Oslo?", "hvem er statsminister?")
+7. OTHER: Andre forespørsler
 
-Basert på klassifiseringen, gi et naturlig, kort og presist svar på norsk som om handlingen er utført eller er i ferd med å utføres.
+Basert på klassifiseringen, gi et naturlig, kort og presist svar på norsk:
 
 Eksempler på svar:
 - SPOTIFY: "Nå spiller jeg [sang/artist] på Spotify"
@@ -23,8 +24,10 @@ Eksempler på svar:
 - PURCHASE: "Nå betaler jeg [beløp] kr på [butikk]"
 - DOOR: "Nå åpner jeg døren i [adresse]"
 - VOICE_MESSAGE: "Sender talemelding til [person]"
+- QUESTION: Gi et faktabasert, presist og informativt svar på spørsmålet. Bruk dine kunnskaper til å svare så nøyaktig som mulig.
 
-Svar alltid kort, naturlig og som om du utfører handlingen akkurat nå.`
+For kommandoer (SPOTIFY, NAVIGATION, etc.): Svar som om du utfører handlingen akkurat nå.
+For spørsmål (QUESTION): Gi et faktabasert svar med relevant informasjon.`
 
 export async function POST(request: NextRequest) {
   try {
@@ -45,7 +48,7 @@ export async function POST(request: NextRequest) {
         { role: 'user', content: text }
       ],
       temperature: 0.7,
-      max_tokens: 150,
+      max_tokens: 200, // Increased for longer question answers
     })
 
     const responseText = completion.choices[0].message.content || 'Beklager, jeg forstod ikke det.'
