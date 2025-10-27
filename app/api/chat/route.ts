@@ -71,17 +71,17 @@ export async function POST(request: NextRequest) {
     let parsedResponse: any
 
     try {
-      // Get ChatGPT response with JSON mode
-      console.log('🤖 Calling ChatGPT...')
+      // Get ChatGPT response (without JSON mode for better compatibility)
+      console.log('🤖 Calling ChatGPT with model: gpt-3.5-turbo')
       const completion = await openai.chat.completions.create({
-        model: 'gpt-4',
+        model: 'gpt-3.5-turbo-1106', // More widely available than GPT-4
         messages: [
           { role: 'system', content: SYSTEM_PROMPT },
           { role: 'user', content: text }
         ],
         temperature: 0.7,
-        max_tokens: 200,
-        response_format: { type: 'json_object' },
+        max_tokens: 300,
+        response_format: { type: 'json_object' }, // This model supports JSON mode
       })
 
       const responseText = completion.choices[0].message.content || '{"intent": "OTHER", "response": "Beklager, jeg forstod ikke det.", "query": null}'
@@ -92,11 +92,20 @@ export async function POST(request: NextRequest) {
       try {
         parsedResponse = JSON.parse(responseText)
         console.log('✅ Parsed response:', parsedResponse)
+
+        // Ensure all required fields exist
+        if (!parsedResponse.intent) parsedResponse.intent = 'OTHER'
+        if (!parsedResponse.response) parsedResponse.response = 'Beklager, jeg forstod ikke det.'
+        if (!parsedResponse.query) parsedResponse.query = null
+
       } catch (e) {
         console.error('❌ Failed to parse JSON:', e)
+        console.error('Raw response was:', responseText)
+
+        // Try to extract useful info from non-JSON response
         parsedResponse = {
           intent: 'OTHER',
-          response: responseText,
+          response: responseText || 'Beklager, jeg forstod ikke det.',
           query: null
         }
       }
@@ -106,11 +115,18 @@ export async function POST(request: NextRequest) {
         parsedResponse.response = 'Du må logge inn på Spotify først for å spille musikk'
       }
     } catch (chatError: any) {
-      console.error('❌ ChatGPT API error:', chatError.message, chatError.status)
+      console.error('❌ ChatGPT API error:', chatError)
+      console.error('Error details:', {
+        message: chatError.message,
+        status: chatError.status,
+        type: chatError.type,
+        code: chatError.code
+      })
+
       // Fallback response if ChatGPT fails
       parsedResponse = {
         intent: 'OTHER',
-        response: 'Jeg kunne ikke behandle forespørselen din. Prøv igjen.',
+        response: `Feil med ChatGPT: ${chatError.message || 'Ukjent feil'}. Sjekk konsollen for detaljer.`,
         query: null
       }
     }
