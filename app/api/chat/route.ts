@@ -72,9 +72,9 @@ export async function POST(request: NextRequest) {
 
     try {
       // Get ChatGPT response (without JSON mode for better compatibility)
-      console.log('🤖 Calling ChatGPT with model: gpt-3.5-turbo')
+      console.log('🤖 Calling ChatGPT with model: gpt-5')
       const completion = await openai.chat.completions.create({
-        model: 'gpt-3.5-turbo-1106', // More widely available than GPT-4
+        model: 'gpt-5', // More widely available than GPT-4
         messages: [
           { role: 'system', content: SYSTEM_PROMPT },
           { role: 'user', content: text }
