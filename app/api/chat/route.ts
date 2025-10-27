@@ -79,7 +79,6 @@ export async function POST(request: NextRequest) {
           { role: 'system', content: SYSTEM_PROMPT },
           { role: 'user', content: text }
         ],
-        temperature: 0.7,
         max_completion_tokens: 500,
         response_format: { type: 'json_object' }, // This model supports JSON mode
       })
