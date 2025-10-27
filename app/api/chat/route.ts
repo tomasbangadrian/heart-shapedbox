@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
           { role: 'user', content: text }
         ],
         temperature: 0.7,
-        max_tokens: 300,
+        max_completion_tokens: 500,
         response_format: { type: 'json_object' }, // This model supports JSON mode
       })
 
