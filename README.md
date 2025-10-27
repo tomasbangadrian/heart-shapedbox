@@ -8,6 +8,7 @@ En intelligent stemmeassistent bygget med Next.js, OpenAI Whisper, og ChatGPT. A
 - 🗣️ **Speech-to-Text**: Bruker OpenAI Whisper for å konvertere tale til tekst
 - 🤖 **Intent Classification**: ChatGPT klassifiserer kommandoen din (Spotify, navigasjon, kjøp, døråpning, volumkontroll, spørsmål, etc.)
 - 🔊 **Text-to-Speech**: Får lydsvar tilbake med OpenAI TTS
+- 🎵 **Spotify Integration**: Ekte Spotify Web Playback - spill musikk direkte i nettleseren!
 - 💬 **Samtalehistorikk**: Se alle dine tidligere kommandoer og svar
 
 ## 🎯 Støttede Kommandoer
@@ -48,9 +49,13 @@ Assistenten kan håndtere:
    cp .env.example .env.local
    ```
 
-   Rediger `.env.local` og legg inn din OpenAI API-nøkkel:
+   Rediger `.env.local` og legg inn dine API-nøkler:
    ```
    OPENAI_API_KEY=sk-din-api-nøkkel-her
+   SPOTIFY_CLIENT_ID=din-spotify-client-id
+   SPOTIFY_CLIENT_SECRET=din-spotify-client-secret
+   SPOTIFY_REDIRECT_URI=http://localhost:3000/api/spotify/callback
+   NEXT_PUBLIC_BASE_URL=http://localhost:3000
    ```
 
 4. **Start utviklingsserveren**:
@@ -61,6 +66,47 @@ Assistenten kan håndtere:
 5. **Åpne appen**:
    Gå til [http://localhost:3000](http://localhost:3000) i nettleseren din
 
+## 🎵 Spotify Setup
+
+For å få Spotify-integrasjon til å fungere, må du sette opp en Spotify Developer App:
+
+### Steg 1: Opprett Spotify App
+
+1. Gå til [Spotify Developer Dashboard](https://developer.spotify.com/dashboard)
+2. Logg inn med din Spotify-konto
+3. Klikk "Create app"
+4. Fyll inn:
+   - **App name**: `Voice Assistant` (eller hva du vil)
+   - **App description**: En beskrivelse
+   - **Website**: Din Vercel URL (f.eks. `https://heart-shapedbox.vercel.app`)
+   - **Redirect URIs**: Legg til:
+     - For produksjon: `https://your-app.vercel.app/api/spotify/callback`
+     - For lokal testing: `http://localhost:3000/api/spotify/callback`
+   - **APIs used**: Velg begge:
+     - ✅ Web API
+     - ✅ Web Playback SDK
+5. Aksepter Spotify's Terms of Service
+6. Klikk "Save"
+
+### Steg 2: Få API Credentials
+
+1. Klikk på appen du nettopp opprettet
+2. Gå til "Settings"
+3. Kopier **Client ID** og **Client Secret**
+4. Legg disse inn i `.env.local` filen din
+
+### Steg 3: Bruk Spotify
+
+1. Start appen
+2. Klikk på "🎵 Logg inn med Spotify" knappen
+3. Godkjenn tilgangene Spotify ber om
+4. Nå kan du si ting som:
+   - "Spill Bohemian Rhapsody"
+   - "Spill Aurora"
+   - "Spill The Weeknd"
+
+**Viktig**: Spotify Web Playback SDK krever at du har **Spotify Premium**!
+
 ## 📦 Deploy til Vercel
 
 ### Metode 1: Via Vercel Dashboard (Anbefalt)
@@ -69,9 +115,12 @@ Assistenten kan håndtere:
 2. Klikk "Add New..." → "Project"
 3. Importer ditt GitHub/GitLab/Bitbucket repository
 4. Vercel vil automatisk detektere Next.js-prosjektet
-5. Legg til miljøvariabel:
-   - Navn: `OPENAI_API_KEY`
-   - Verdi: Din OpenAI API-nøkkel
+5. Legg til miljøvariabler:
+   - `OPENAI_API_KEY`: Din OpenAI API-nøkkel
+   - `SPOTIFY_CLIENT_ID`: Din Spotify Client ID
+   - `SPOTIFY_CLIENT_SECRET`: Din Spotify Client Secret
+   - `SPOTIFY_REDIRECT_URI`: `https://your-app.vercel.app/api/spotify/callback`
+   - `NEXT_PUBLIC_BASE_URL`: `https://your-app.vercel.app`
 6. Klikk "Deploy"
 
 ### Metode 2: Via Vercel CLI

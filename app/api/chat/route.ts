@@ -17,23 +17,29 @@ Klassifiser brukerkommandoen som én av følgende typer:
 7. QUESTION: Spørsmål om fakta eller kunnskap (eksempel: "hva er hovedstaden i Norge?", "hvor mange innbyggere har Oslo?", "hvem er statsminister?")
 8. OTHER: Andre forespørsler
 
-Basert på klassifiseringen, gi et naturlig, kort og presist svar på norsk:
+Svar i følgende JSON-format:
+{
+  "intent": "INTENT_TYPE",
+  "response": "ditt svar her",
+  "query": "søkeord for Spotify (kun for SPOTIFY intent)"
+}
+
+For SPOTIFY: Ekstrahér søkeordet fra kommandoen. Eks: "spill bohemian rhapsody" -> query: "bohemian rhapsody"
 
 Eksempler på svar:
-- SPOTIFY: "Nå spiller jeg [sang/artist] på Spotify"
-- NAVIGATION: "Du er i [nåværende sted]. Gå [retning og avstand] for å komme til [destinasjon]"
-- PURCHASE: "Nå betaler jeg [beløp] kr på [butikk]"
-- DOOR: "Nå åpner jeg døren i [adresse]"
-- VOICE_MESSAGE: "Sender talemelding til [person]"
-- VOLUME: "Volumet er nå satt til [prosent]%"
-- QUESTION: Gi et faktabasert, presist og informativt svar på spørsmålet. Bruk dine kunnskaper til å svare så nøyaktig som mulig.
+- SPOTIFY: {"intent": "SPOTIFY", "response": "Søker etter låten på Spotify", "query": "artist song"}
+- NAVIGATION: {"intent": "NAVIGATION", "response": "Du er i [sted]. Gå [retning]", "query": null}
+- PURCHASE: {"intent": "PURCHASE", "response": "Nå betaler jeg [beløp] kr på [butikk]", "query": null}
+- DOOR: {"intent": "DOOR", "response": "Nå åpner jeg døren i [adresse]", "query": null}
+- VOICE_MESSAGE: {"intent": "VOICE_MESSAGE", "response": "Sender talemelding til [person]", "query": null}
+- VOLUME: {"intent": "VOLUME", "response": "Volumet er nå satt til [prosent]%", "query": null}
+- QUESTION: {"intent": "QUESTION", "response": "Faktabasert svar her", "query": null}
 
-For kommandoer (SPOTIFY, NAVIGATION, VOLUME, etc.): Svar som om du utfører handlingen akkurat nå.
-For spørsmål (QUESTION): Gi et faktabasert svar med relevant informasjon.`
+Svar ALLTID med gyldig JSON.`
 
 export async function POST(request: NextRequest) {
   try {
-    const { text } = await request.json()
+    const { text, hasSpotify } = await request.json()
 
     if (!text) {
       return NextResponse.json(
@@ -50,16 +56,34 @@ export async function POST(request: NextRequest) {
         { role: 'user', content: text }
       ],
       temperature: 0.7,
-      max_tokens: 200, // Increased for longer question answers
+      max_tokens: 200,
+      response_format: { type: 'json_object' },
     })
 
-    const responseText = completion.choices[0].message.content || 'Beklager, jeg forstod ikke det.'
+    const responseText = completion.choices[0].message.content || '{"intent": "OTHER", "response": "Beklager, jeg forstod ikke det.", "query": null}'
+
+    // Parse JSON response
+    let parsedResponse
+    try {
+      parsedResponse = JSON.parse(responseText)
+    } catch (e) {
+      parsedResponse = {
+        intent: 'OTHER',
+        response: responseText,
+        query: null
+      }
+    }
+
+    // Check if Spotify login is needed
+    if (parsedResponse.intent === 'SPOTIFY' && !hasSpotify) {
+      parsedResponse.response = 'Du må logge inn på Spotify først for å spille musikk'
+    }
 
     // Generate TTS audio
     const ttsResponse = await openai.audio.speech.create({
       model: 'tts-1',
-      voice: 'nova', // Norwegian-friendly voice
-      input: responseText,
+      voice: 'nova',
+      input: parsedResponse.response,
     })
 
     // Convert audio to base64 data URL
@@ -68,8 +92,10 @@ export async function POST(request: NextRequest) {
     const audioUrl = `data:audio/mpeg;base64,${audioBase64}`
 
     return NextResponse.json({
-      response: responseText,
+      response: parsedResponse.response,
       audioUrl: audioUrl,
+      intent: parsedResponse.intent,
+      spotifyQuery: parsedResponse.query,
     })
   } catch (error) {
     console.error('Chat API error:', error)

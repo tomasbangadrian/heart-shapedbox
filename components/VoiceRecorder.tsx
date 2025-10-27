@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
+import SpotifyPlayer from './SpotifyPlayer'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -12,8 +13,32 @@ export default function VoiceRecorder() {
   const [isRecording, setIsRecording] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
   const [messages, setMessages] = useState<Message[]>([])
+  const [spotifyAccessToken, setSpotifyAccessToken] = useState<string | null>(null)
+  const [spotifyRefreshToken, setSpotifyRefreshToken] = useState<string | null>(null)
+  const [spotifyDeviceId, setSpotifyDeviceId] = useState<string | null>(null)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const audioChunksRef = useRef<Blob[]>([])
+
+  // Handle Spotify OAuth callback
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const accessToken = params.get('access_token')
+    const refreshToken = params.get('refresh_token')
+    const error = params.get('error')
+
+    if (error) {
+      alert('Spotify authentication feilet: ' + error)
+    }
+
+    if (accessToken) {
+      setSpotifyAccessToken(accessToken)
+      if (refreshToken) {
+        setSpotifyRefreshToken(refreshToken)
+      }
+      // Clean up URL
+      window.history.replaceState({}, document.title, window.location.pathname)
+    }
+  }, [])
 
   const startRecording = async () => {
     try {
@@ -46,6 +71,47 @@ export default function VoiceRecorder() {
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop()
       setIsRecording(false)
+    }
+  }
+
+  const handleSpotifyCommand = async (query: string) => {
+    if (!spotifyAccessToken) {
+      return 'Du må logge inn på Spotify først'
+    }
+
+    try {
+      // Search for the track
+      const searchResponse = await fetch('/api/spotify/search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query, accessToken: spotifyAccessToken }),
+      })
+
+      if (!searchResponse.ok) {
+        return 'Kunne ikke finne låten på Spotify'
+      }
+
+      const track = await searchResponse.json()
+
+      // Play the track
+      const playResponse = await fetch('/api/spotify/play', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          uri: track.uri,
+          accessToken: spotifyAccessToken,
+          deviceId: spotifyDeviceId,
+        }),
+      })
+
+      if (!playResponse.ok) {
+        return 'Kunne ikke spille låten. Sjekk at Spotify er åpen.'
+      }
+
+      return `Nå spiller jeg ${track.name} av ${track.artist} på Spotify`
+    } catch (error) {
+      console.error('Spotify command error:', error)
+      return 'Noe gikk galt med Spotify'
     }
   }
 
@@ -82,24 +148,34 @@ export default function VoiceRecorder() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ text }),
+        body: JSON.stringify({
+          text,
+          hasSpotify: !!spotifyAccessToken
+        }),
       })
 
       if (!chatResponse.ok) {
         throw new Error('Chat API feilet')
       }
 
-      const { response, audioUrl } = await chatResponse.json()
+      const { response, audioUrl, intent, spotifyQuery } = await chatResponse.json()
+
+      let finalResponse = response
+
+      // Handle Spotify commands
+      if (intent === 'SPOTIFY' && spotifyQuery) {
+        finalResponse = await handleSpotifyCommand(spotifyQuery)
+      }
 
       // Add assistant message
       const assistantMessage: Message = {
         role: 'assistant',
-        content: response,
+        content: finalResponse,
         timestamp: new Date()
       }
       setMessages(prev => [...prev, assistantMessage])
 
-      // Play TTS audio
+      // Play TTS audio (use original response for TTS)
       if (audioUrl) {
         const audio = new Audio(audioUrl)
         audio.play()
@@ -119,6 +195,26 @@ export default function VoiceRecorder() {
         <h1 style={styles.title}>🎤 Stemmeassistent</h1>
         <p style={styles.subtitle}>Trykk og hold for å snakke</p>
       </div>
+
+      {/* Spotify Login/Status */}
+      {!spotifyAccessToken ? (
+        <div style={styles.spotifyLogin}>
+          <p style={styles.spotifyText}>
+            Logg inn på Spotify for å spille musikk
+          </p>
+          <button
+            style={styles.spotifyButton}
+            onClick={() => window.location.href = '/api/spotify/login'}
+          >
+            🎵 Logg inn med Spotify
+          </button>
+        </div>
+      ) : (
+        <SpotifyPlayer
+          accessToken={spotifyAccessToken}
+          onDeviceReady={(deviceId) => setSpotifyDeviceId(deviceId)}
+        />
+      )}
 
       <div style={styles.recordingSection}>
         <button
@@ -191,6 +287,29 @@ const styles: { [key: string]: React.CSSProperties } = {
   subtitle: {
     fontSize: '1.1rem',
     color: '#aaaaaa',
+  },
+  spotifyLogin: {
+    textAlign: 'center',
+    padding: '20px',
+    marginBottom: '30px',
+    background: '#1a1a2e',
+    borderRadius: '12px',
+    border: '2px solid #1DB954',
+  },
+  spotifyText: {
+    marginBottom: '15px',
+    color: '#aaaaaa',
+  },
+  spotifyButton: {
+    padding: '12px 24px',
+    background: '#1DB954',
+    color: 'white',
+    border: 'none',
+    borderRadius: '24px',
+    fontSize: '1rem',
+    fontWeight: 'bold',
+    cursor: 'pointer',
+    transition: 'all 0.3s ease',
   },
   recordingSection: {
     display: 'flex',
