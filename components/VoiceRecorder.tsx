@@ -259,6 +259,24 @@ export default function VoiceRecorder() {
         </button>
       </div>
 
+      <div style={styles.instructionsBox}>
+        <h3 style={styles.instructionsTitle}>💡 Hvordan bruke</h3>
+        <ol style={styles.instructionsList}>
+          <li><strong>Hold inne</strong> den store knappen over</li>
+          <li><strong>Snakk</strong> tydelig mens du holder</li>
+          <li><strong>Slipp</strong> når du er ferdig</li>
+        </ol>
+        <div style={styles.examplesBox}>
+          <p style={styles.examplesTitle}><strong>📝 Eksempler på kommandoer:</strong></p>
+          <ul style={styles.examplesList}>
+            <li>"Hva er hovedstaden i Norge?"</li>
+            <li>"Spill Bohemian Rhapsody"</li>
+            <li>"Spill Aurora på Spotify"</li>
+            <li>"Still volum på 50%"</li>
+          </ul>
+        </div>
+      </div>
+
       <div style={styles.messagesContainer}>
         <h2 style={styles.messagesTitle}>Samtalehistorikk</h2>
         <div style={styles.messagesList}>
@@ -335,7 +353,41 @@ const styles: { [key: string]: React.CSSProperties } = {
   recordingSection: {
     display: 'flex',
     justifyContent: 'center',
+    marginBottom: '30px',
+  },
+  instructionsBox: {
+    background: '#1a1a2e',
+    borderRadius: '12px',
+    padding: '20px 30px',
     marginBottom: '40px',
+    border: '1px solid #3a3a4e',
+  },
+  instructionsTitle: {
+    fontSize: '1.2rem',
+    marginBottom: '15px',
+    color: '#4a9eff',
+  },
+  instructionsList: {
+    marginLeft: '20px',
+    marginBottom: '20px',
+    lineHeight: '1.8',
+    color: '#e0e0e0',
+  },
+  examplesBox: {
+    background: '#0f0f23',
+    borderRadius: '8px',
+    padding: '15px',
+    marginTop: '15px',
+  },
+  examplesTitle: {
+    marginBottom: '10px',
+    color: '#aaaaaa',
+  },
+  examplesList: {
+    listStyleType: 'disc',
+    marginLeft: '20px',
+    lineHeight: '1.8',
+    color: '#cccccc',
   },
   recordButton: {
     width: '200px',

@@ -4,6 +4,9 @@ import type { Metadata } from 'next'
 export const metadata: Metadata = {
   title: 'Voice Assistant',
   description: 'AI-drevet stemmeassistent med ChatGPT og Whisper',
+  icons: {
+    icon: '/favicon.ico',
+  },
 }
 
 export default function RootLayout({
