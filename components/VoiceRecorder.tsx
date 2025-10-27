@@ -13,6 +13,7 @@ export default function VoiceRecorder() {
   const [isRecording, setIsRecording] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
   const [messages, setMessages] = useState<Message[]>([])
+  const [textInput, setTextInput] = useState('')
   const [spotifyAccessToken, setSpotifyAccessToken] = useState<string | null>(null)
   const [spotifyRefreshToken, setSpotifyRefreshToken] = useState<string | null>(null)
   const [spotifyDeviceId, setSpotifyDeviceId] = useState<string | null>(null)
@@ -210,6 +211,83 @@ export default function VoiceRecorder() {
     }
   }
 
+  const processText = async (text: string) => {
+    if (!text.trim()) return
+
+    setIsProcessing(true)
+
+    try {
+      console.log('📝 Processing text input:', text)
+
+      // Add user message
+      const userMessage: Message = {
+        role: 'user',
+        content: text,
+        timestamp: new Date()
+      }
+      setMessages(prev => [...prev, userMessage])
+
+      // Send to ChatGPT for classification and response
+      const chatResponse = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          text,
+          hasSpotify: !!spotifyAccessToken
+        }),
+      })
+
+      if (!chatResponse.ok) {
+        throw new Error('Chat API feilet')
+      }
+
+      const { response, audioUrl, intent, spotifyQuery } = await chatResponse.json()
+
+      console.log('🤖 ChatGPT Response:', { intent, response, spotifyQuery })
+
+      let finalResponse = response
+
+      // Handle Spotify commands
+      if (intent === 'SPOTIFY' && spotifyQuery) {
+        console.log('🎵 Spotify command detected, query:', spotifyQuery)
+        finalResponse = await handleSpotifyCommand(spotifyQuery)
+      } else if (intent === 'SPOTIFY' && !spotifyQuery) {
+        console.log('⚠️ Spotify intent but no query extracted')
+        finalResponse = 'Jeg forstod ikke hvilken sang du vil spille. Prøv igjen.'
+      }
+
+      // Add assistant message
+      const assistantMessage: Message = {
+        role: 'assistant',
+        content: finalResponse,
+        timestamp: new Date()
+      }
+      setMessages(prev => [...prev, assistantMessage])
+
+      // Play TTS audio (use original response for TTS)
+      if (audioUrl) {
+        const audio = new Audio(audioUrl)
+        audio.play()
+      }
+
+    } catch (error) {
+      console.error('Error processing text:', error)
+      alert('Noe gikk galt. Prøv igjen.')
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
+  const handleTextSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (textInput.trim()) {
+      processText(textInput)
+      setTextInput('')
+    }
+  }
+
   return (
     <div style={styles.container}>
       <div style={styles.header}>
@@ -257,6 +335,28 @@ export default function VoiceRecorder() {
             <span style={styles.buttonText}>🎤 Hold for å snakke</span>
           )}
         </button>
+      </div>
+
+      {/* Text Input Alternative */}
+      <div style={styles.textInputSection}>
+        <p style={styles.orText}>eller skriv kommando manuelt:</p>
+        <form onSubmit={handleTextSubmit} style={styles.textForm}>
+          <input
+            type="text"
+            value={textInput}
+            onChange={(e) => setTextInput(e.target.value)}
+            placeholder='F.eks: "spill great day for freedom av pink floyd"'
+            style={styles.textInput}
+            disabled={isProcessing}
+          />
+          <button
+            type="submit"
+            style={styles.textSubmitButton}
+            disabled={isProcessing || !textInput.trim()}
+          >
+            {isProcessing ? '⏳' : '📤 Send'}
+          </button>
+        </form>
       </div>
 
       <div style={styles.instructionsBox}>
@@ -353,7 +453,46 @@ const styles: { [key: string]: React.CSSProperties } = {
   recordingSection: {
     display: 'flex',
     justifyContent: 'center',
-    marginBottom: '30px',
+    marginBottom: '20px',
+  },
+  textInputSection: {
+    textAlign: 'center',
+    marginBottom: '40px',
+  },
+  orText: {
+    color: '#888',
+    marginBottom: '15px',
+    fontSize: '0.95rem',
+  },
+  textForm: {
+    display: 'flex',
+    justifyContent: 'center',
+    gap: '10px',
+    maxWidth: '600px',
+    margin: '0 auto',
+  },
+  textInput: {
+    flex: 1,
+    padding: '12px 20px',
+    fontSize: '1rem',
+    borderRadius: '8px',
+    border: '2px solid #3a3a4e',
+    background: '#1a1a2e',
+    color: 'white',
+    outline: 'none',
+    transition: 'border-color 0.3s ease',
+  },
+  textSubmitButton: {
+    padding: '12px 24px',
+    fontSize: '1rem',
+    fontWeight: 'bold',
+    borderRadius: '8px',
+    border: 'none',
+    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    color: 'white',
+    cursor: 'pointer',
+    transition: 'all 0.3s ease',
+    whiteSpace: 'nowrap',
   },
   instructionsBox: {
     background: '#1a1a2e',
