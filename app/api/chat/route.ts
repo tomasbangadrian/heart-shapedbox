@@ -107,12 +107,15 @@ async function normalizeSpotifyQuery(query: string): Promise<{ track: string; ar
 Important corrections to know:
 - "pete floyd" → "Pink Floyd"
 - "led zeplin" → "Led Zeppelin"
-- "through the eyes of ruby" → "Eye" (Smashing Pumpkins - singular "Eye", not "Eyes"!)
-- "thru the eyes of ruby" → "Eye" (Smashing Pumpkins - singular "Eye", not "Eyes"!)
 - "the weeknd" is CORRECT (not "the weekend")
 
-CRITICAL: The Smashing Pumpkins song is titled just "Eye" (singular), not "Eyes" (plural).
-"Thru/Through the Eyes/Eye of Ruby" → correct title is simply "Eye"
+IMPORTANT: The Smashing Pumpkins has TWO different songs:
+1. "Eye" - a song with just this one word as title
+2. "Thru the Eyes of Ruby" - a DIFFERENT song (note: spelled "Thru" not "Through")
+
+When user says "through the eyes of ruby" or "thru the eyes of ruby":
+- Use the EXACT official title: "Thru the Eyes of Ruby" (with "Thru")
+- Do NOT change it to "Eye" - these are different songs!
 
 Query: "${query}"
 
@@ -120,10 +123,13 @@ Return ONLY a JSON object in this exact format, nothing else:
 {"track": "Song Title", "artist": "Artist Name"}
 
 Examples:
-Input: "thru the eyes of the ruby smashing pumpkins"
-Output: {"track": "Eye", "artist": "The Smashing Pumpkins"}
-
 Input: "through the eyes of ruby smashing pumpkins"
+Output: {"track": "Thru the Eyes of Ruby", "artist": "The Smashing Pumpkins"}
+
+Input: "thru the eyes of ruby smashing pumpkins"
+Output: {"track": "Thru the Eyes of Ruby", "artist": "The Smashing Pumpkins"}
+
+Input: "eye smashing pumpkins"
 Output: {"track": "Eye", "artist": "The Smashing Pumpkins"}`
 
     const completion = await openai.chat.completions.create({
