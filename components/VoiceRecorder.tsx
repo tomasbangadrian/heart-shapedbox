@@ -32,6 +32,7 @@ export default function VoiceRecorder() {
   const [spotifyAccessToken, setSpotifyAccessToken] = useState<string | null>(null)
   const [spotifyRefreshToken, setSpotifyRefreshToken] = useState<string | null>(null)
   const [spotifyDeviceId, setSpotifyDeviceId] = useState<string | null>(null)
+  const [userLibrary, setUserLibrary] = useState<any[]>([])
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const audioChunksRef = useRef<Blob[]>([])
 
@@ -55,6 +56,34 @@ export default function VoiceRecorder() {
       window.history.replaceState({}, document.title, window.location.pathname)
     }
   }, [])
+
+  // Fetch user's Spotify library when access token is available
+  useEffect(() => {
+    const fetchLibrary = async () => {
+      if (!spotifyAccessToken) return
+
+      try {
+        console.log('📚 Fetching user Spotify library...')
+        const response = await fetch('/api/spotify/library', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ accessToken: spotifyAccessToken }),
+        })
+
+        if (response.ok) {
+          const data = await response.json()
+          setUserLibrary(data.library)
+          console.log(`✅ Loaded ${data.library.length} tracks from user library`)
+        } else {
+          console.error('❌ Failed to fetch library:', response.status)
+        }
+      } catch (error) {
+        console.error('❌ Error fetching library:', error)
+      }
+    }
+
+    fetchLibrary()
+  }, [spotifyAccessToken])
 
   const startRecording = async () => {
     try {
@@ -189,7 +218,8 @@ export default function VoiceRecorder() {
         },
         body: JSON.stringify({
           text,
-          hasSpotify: !!spotifyAccessToken
+          hasSpotify: !!spotifyAccessToken,
+          userLibrary: userLibrary.length > 0 ? userLibrary : undefined
         }),
       })
 
@@ -260,7 +290,8 @@ export default function VoiceRecorder() {
         },
         body: JSON.stringify({
           text,
-          hasSpotify: !!spotifyAccessToken
+          hasSpotify: !!spotifyAccessToken,
+          userLibrary: userLibrary.length > 0 ? userLibrary : undefined
         }),
       })
 
@@ -336,10 +367,17 @@ export default function VoiceRecorder() {
           </button>
         </div>
       ) : (
-        <SpotifyPlayer
-          accessToken={spotifyAccessToken}
-          onDeviceReady={(deviceId) => setSpotifyDeviceId(deviceId)}
-        />
+        <>
+          <SpotifyPlayer
+            accessToken={spotifyAccessToken}
+            onDeviceReady={(deviceId) => setSpotifyDeviceId(deviceId)}
+          />
+          {userLibrary.length > 0 && (
+            <div style={styles.libraryInfo}>
+              📚 Library loaded: {userLibrary.length} saved tracks
+            </div>
+          )}
+        </>
       )}
 
       <div style={styles.recordingSection}>
@@ -720,5 +758,14 @@ const styles: { [key: string]: React.CSSProperties } = {
   afterNorm: {
     color: '#4ade80',
     fontWeight: 'bold',
+  },
+  libraryInfo: {
+    textAlign: 'center',
+    padding: '10px',
+    marginTop: '10px',
+    background: '#0f0f23',
+    borderRadius: '8px',
+    fontSize: '0.9rem',
+    color: '#4ade80',
   },
 }
