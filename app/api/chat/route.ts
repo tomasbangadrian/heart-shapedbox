@@ -187,6 +187,7 @@ export async function POST(request: NextRequest) {
     }
 
     let parsedResponse: any
+    let originalQuery: string | null = null
 
     try {
       // STEP 1: Classification - Get ChatGPT response
@@ -228,7 +229,7 @@ export async function POST(request: NextRequest) {
 
       // STEP 2: Normalization - Clean up query based on intent
       console.log('🧹 STEP 2: Normalizing query...')
-      const originalQuery = parsedResponse.query
+      originalQuery = parsedResponse.query
       parsedResponse.query = await normalizeQuery(parsedResponse.intent, parsedResponse.query, text)
 
       if (originalQuery !== parsedResponse.query) {
@@ -284,6 +285,20 @@ export async function POST(request: NextRequest) {
         audioUrl: audioUrl,
         intent: parsedResponse.intent,
         spotifyQuery: parsedResponse.query,
+        // Pipeline details for debugging
+        pipelineDetails: {
+          step1_transcription: text,
+          step2_classification: {
+            intent: parsedResponse.intent,
+            rawQuery: originalQuery || parsedResponse.query,
+          },
+          step3_normalization: {
+            originalQuery: originalQuery,
+            normalizedQuery: parsedResponse.query,
+            wasNormalized: originalQuery !== parsedResponse.query,
+          },
+          step4_finalResponse: parsedResponse.response,
+        },
       })
     } catch (ttsError: any) {
       console.error('❌ TTS error:', ttsError.message)
@@ -293,6 +308,20 @@ export async function POST(request: NextRequest) {
         audioUrl: null,
         intent: parsedResponse.intent,
         spotifyQuery: parsedResponse.query,
+        // Pipeline details for debugging
+        pipelineDetails: {
+          step1_transcription: text,
+          step2_classification: {
+            intent: parsedResponse.intent,
+            rawQuery: originalQuery || parsedResponse.query,
+          },
+          step3_normalization: {
+            originalQuery: originalQuery,
+            normalizedQuery: parsedResponse.query,
+            wasNormalized: originalQuery !== parsedResponse.query,
+          },
+          step4_finalResponse: parsedResponse.response,
+        },
       })
     }
   } catch (error: any) {
