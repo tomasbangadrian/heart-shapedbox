@@ -3,10 +3,25 @@
 import { useState, useRef, useEffect } from 'react'
 import SpotifyPlayer from './SpotifyPlayer'
 
+interface PipelineDetails {
+  step1_transcription: string
+  step2_classification: {
+    intent: string
+    rawQuery: string | null
+  }
+  step3_normalization: {
+    originalQuery: string | null
+    normalizedQuery: string | null
+    wasNormalized: boolean
+  }
+  step4_finalResponse: string
+}
+
 interface Message {
   role: 'user' | 'assistant'
   content: string
   timestamp: Date
+  pipelineDetails?: PipelineDetails
 }
 
 export default function VoiceRecorder() {
@@ -174,9 +189,10 @@ export default function VoiceRecorder() {
         throw new Error('Chat API feilet')
       }
 
-      const { response, audioUrl, intent, spotifyQuery } = await chatResponse.json()
+      const { response, audioUrl, intent, spotifyQuery, pipelineDetails } = await chatResponse.json()
 
       console.log('🤖 ChatGPT Response:', { intent, response, spotifyQuery })
+      console.log('🔍 Pipeline Details:', pipelineDetails)
 
       let finalResponse = response
 
@@ -189,11 +205,12 @@ export default function VoiceRecorder() {
         finalResponse = 'I didn\'t understand which song you want to play. Try again.'
       }
 
-      // Add assistant message
+      // Add assistant message with pipeline details
       const assistantMessage: Message = {
         role: 'assistant',
         content: finalResponse,
-        timestamp: new Date()
+        timestamp: new Date(),
+        pipelineDetails: pipelineDetails
       }
       setMessages(prev => [...prev, assistantMessage])
 
@@ -243,9 +260,10 @@ export default function VoiceRecorder() {
         throw new Error('Chat API feilet')
       }
 
-      const { response, audioUrl, intent, spotifyQuery } = await chatResponse.json()
+      const { response, audioUrl, intent, spotifyQuery, pipelineDetails } = await chatResponse.json()
 
       console.log('🤖 ChatGPT Response:', { intent, response, spotifyQuery })
+      console.log('🔍 Pipeline Details:', pipelineDetails)
 
       let finalResponse = response
 
@@ -258,11 +276,12 @@ export default function VoiceRecorder() {
         finalResponse = 'I didn\'t understand which song you want to play. Try again.'
       }
 
-      // Add assistant message
+      // Add assistant message with pipeline details
       const assistantMessage: Message = {
         role: 'assistant',
         content: finalResponse,
-        timestamp: new Date()
+        timestamp: new Date(),
+        pipelineDetails: pipelineDetails
       }
       setMessages(prev => [...prev, assistantMessage])
 
@@ -397,6 +416,57 @@ export default function VoiceRecorder() {
                   {message.role === 'user' ? '👤 You' : '🤖 Assistant'}
                 </div>
                 <div style={styles.messageContent}>{message.content}</div>
+
+                {/* Pipeline Details for Assistant Messages */}
+                {message.role === 'assistant' && message.pipelineDetails && (
+                  <div style={styles.pipelineDetails}>
+                    <div style={styles.pipelineTitle}>🔍 Pipeline Details:</div>
+
+                    <div style={styles.pipelineStep}>
+                      <strong>📝 Step 1: Whisper Transcription</strong>
+                      <div style={styles.pipelineValue}>"{message.pipelineDetails.step1_transcription}"</div>
+                    </div>
+
+                    <div style={styles.pipelineStep}>
+                      <strong>🤖 Step 2: Classification</strong>
+                      <div style={styles.pipelineValue}>
+                        Intent: <span style={styles.intentBadge}>{message.pipelineDetails.step2_classification.intent}</span>
+                      </div>
+                      {message.pipelineDetails.step2_classification.rawQuery && (
+                        <div style={styles.pipelineValue}>
+                          Raw Query: "{message.pipelineDetails.step2_classification.rawQuery}"
+                        </div>
+                      )}
+                    </div>
+
+                    <div style={styles.pipelineStep}>
+                      <strong>🧹 Step 3: Normalization</strong>
+                      {message.pipelineDetails.step3_normalization.wasNormalized ? (
+                        <>
+                          <div style={styles.pipelineValue}>
+                            Before: <span style={styles.beforeNorm}>"{message.pipelineDetails.step3_normalization.originalQuery}"</span>
+                          </div>
+                          <div style={styles.pipelineValue}>
+                            After: <span style={styles.afterNorm}>"{message.pipelineDetails.step3_normalization.normalizedQuery}"</span>
+                          </div>
+                          <div style={{...styles.pipelineValue, color: '#4ade80'}}>
+                            ✨ Query was normalized via GPT reasoning
+                          </div>
+                        </>
+                      ) : (
+                        <div style={styles.pipelineValue}>
+                          No normalization needed (query unchanged)
+                        </div>
+                      )}
+                    </div>
+
+                    <div style={styles.pipelineStep}>
+                      <strong>✅ Step 4: Final Response</strong>
+                      <div style={styles.pipelineValue}>"{message.pipelineDetails.step4_finalResponse}"</div>
+                    </div>
+                  </div>
+                )}
+
                 <div style={styles.messageTime}>
                   {message.timestamp.toLocaleTimeString('en-US')}
                 </div>
@@ -600,5 +670,47 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontSize: '0.75rem',
     opacity: 0.6,
     textAlign: 'right',
+  },
+  pipelineDetails: {
+    marginTop: '15px',
+    padding: '15px',
+    background: '#0f0f23',
+    borderRadius: '8px',
+    border: '1px solid #3a3a4e',
+    fontSize: '0.85rem',
+  },
+  pipelineTitle: {
+    fontSize: '0.9rem',
+    fontWeight: 'bold',
+    marginBottom: '12px',
+    color: '#4ade80',
+  },
+  pipelineStep: {
+    marginBottom: '12px',
+    paddingBottom: '10px',
+    borderBottom: '1px solid #2a2a3e',
+  },
+  pipelineValue: {
+    marginTop: '5px',
+    marginLeft: '10px',
+    color: '#aaaaaa',
+    fontFamily: 'monospace',
+    fontSize: '0.85rem',
+  },
+  intentBadge: {
+    background: '#667eea',
+    color: 'white',
+    padding: '3px 8px',
+    borderRadius: '4px',
+    fontWeight: 'bold',
+    fontSize: '0.8rem',
+  },
+  beforeNorm: {
+    color: '#f87171',
+    textDecoration: 'line-through',
+  },
+  afterNorm: {
+    color: '#4ade80',
+    fontWeight: 'bold',
   },
 }
