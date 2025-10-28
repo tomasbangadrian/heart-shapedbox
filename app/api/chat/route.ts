@@ -21,8 +21,10 @@ Respond in the following JSON format:
 {
   "intent": "INTENT_TYPE",
   "response": "your response here",
-  "query": "search terms for Spotify (only for SPOTIFY intent)"
+  "query": "extracted query/address/data (see intent-specific rules below)"
 }
+
+Intent-specific rules for "query" field:
 
 For SPOTIFY intent:
 - ALWAYS extract song title and artist from the command
@@ -31,20 +33,136 @@ For SPOTIFY intent:
 - Examples:
   * "play bohemian rhapsody" -> query: "bohemian rhapsody"
   * "play great day for freedom by pink floyd" -> query: "great day for freedom pink floyd"
-  * "play great day for freedom by pink floyd on spotify" -> query: "great day for freedom pink floyd"
   * "play the weeknd" -> query: "the weeknd"
   * "play comfortably numb by pink floyd" -> query: "comfortably numb pink floyd"
 
+For DOOR intent:
+- Extract the address exactly as spoken
+- DO NOT expand or normalize yet (that will be done later)
+- Examples:
+  * "open door at Halsesgatet 13" -> query: "Halsesgatet 13"
+  * "open the door at dyre halses gate 13" -> query: "dyre halses gate 13"
+
+For NAVIGATION intent:
+- Extract the destination address/place exactly as spoken
+- Examples:
+  * "navigate to Munkegata 5" -> query: "Munkegata 5"
+  * "directions to the mall" -> query: "the mall"
+
 Examples of complete responses:
 - SPOTIFY: {"intent": "SPOTIFY", "response": "Searching for the song on Spotify", "query": "song artist"}
-- NAVIGATION: {"intent": "NAVIGATION", "response": "You are at [place]. Go [direction]", "query": null}
+- NAVIGATION: {"intent": "NAVIGATION", "response": "Navigating to [place]", "query": "[place]"}
 - PURCHASE: {"intent": "PURCHASE", "response": "Now paying [amount] at [store]", "query": null}
-- DOOR: {"intent": "DOOR", "response": "Now opening the door at [address]", "query": null}
+- DOOR: {"intent": "DOOR", "response": "Now opening the door at [address]", "query": "[address]"}
 - VOICE_MESSAGE: {"intent": "VOICE_MESSAGE", "response": "Sending voice message to [person]", "query": null}
 - VOLUME: {"intent": "VOLUME", "response": "Volume is now set to [percent]%", "query": null}
 - QUESTION: {"intent": "QUESTION", "response": "Fact-based answer here", "query": null}
 
 ALWAYS respond with valid JSON.`
+
+// Normalize query based on intent using web search or reasoning
+async function normalizeQuery(intent: string, query: string | null, originalText: string): Promise<string | null> {
+  if (!query) return null
+
+  try {
+    console.log(`🧹 Normalizing ${intent} query:`, query)
+
+    switch (intent) {
+      case 'SPOTIFY':
+        // Fix artist/song name typos and variations
+        return await normalizeSpotifyQuery(query)
+
+      case 'DOOR':
+      case 'NAVIGATION':
+        // Normalize Norwegian addresses
+        return await normalizeAddress(query, originalText)
+
+      default:
+        // No normalization needed for other intents
+        return query
+    }
+  } catch (error: any) {
+    console.error('❌ Normalization error:', error.message)
+    // Return original query if normalization fails
+    return query
+  }
+}
+
+// Normalize Spotify queries (fix artist names, song titles)
+async function normalizeSpotifyQuery(query: string): Promise<string> {
+  try {
+    console.log('🎵 Normalizing Spotify query:', query)
+
+    const normalizationPrompt = `You are a music expert. Fix any typos or misspellings in this music search query.
+
+Common errors:
+- "pete floyd" should be "pink floyd"
+- "the weeknd" is correct (not "the weekend")
+- "led zeplin" should be "led zeppelin"
+
+Query: "${query}"
+
+Return ONLY the corrected query text, nothing else. If the query looks correct, return it unchanged.`
+
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-5',
+      messages: [
+        { role: 'system', content: 'You are a music expert that fixes typos in artist and song names. Return only the corrected query, nothing else.' },
+        { role: 'user', content: normalizationPrompt }
+      ],
+      max_completion_tokens: 100,
+      temperature: 0.3, // Lower temperature for more consistent corrections
+    })
+
+    const normalized = completion.choices[0].message.content?.trim() || query
+    console.log('✅ Normalized Spotify query:', normalized)
+    return normalized
+  } catch (error: any) {
+    console.error('❌ Spotify normalization error:', error.message)
+    return query
+  }
+}
+
+// Normalize Norwegian addresses
+async function normalizeAddress(address: string, originalText: string): Promise<string> {
+  try {
+    console.log('🏠 Normalizing address:', address)
+
+    const normalizationPrompt = `You are an expert on Norwegian addresses, especially in Trondheim.
+
+Normalize this address to its full official form:
+- Expand abbreviated street names (e.g., "Halsesgatet" → "Dyre Halses gate")
+- Add city if missing (default to Trondheim if context suggests it)
+- Include postal code if you know it
+- Use proper Norwegian address formatting
+
+Original command: "${originalText}"
+Extracted address: "${address}"
+
+Return ONLY the normalized full address, nothing else.
+Examples:
+- "Halsesgatet 13" → "Dyre Halses gate 13, 7045 Trondheim"
+- "Munkegata 5" → "Munkegata 5, 7013 Trondheim"
+- "Elgeseter gate 1" → "Elgeseter gate 1, 7030 Trondheim"`
+
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-5',
+      messages: [
+        { role: 'system', content: 'You are a Norwegian address expert. Return only the normalized address, nothing else.' },
+        { role: 'user', content: normalizationPrompt }
+      ],
+      max_completion_tokens: 100,
+      temperature: 0.3,
+    })
+
+    const normalized = completion.choices[0].message.content?.trim() || address
+    console.log('✅ Normalized address:', normalized)
+    return normalized
+  } catch (error: any) {
+    console.error('❌ Address normalization error:', error.message)
+    return address
+  }
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -71,16 +189,16 @@ export async function POST(request: NextRequest) {
     let parsedResponse: any
 
     try {
-      // Get ChatGPT response (without JSON mode for better compatibility)
-      console.log('🤖 Calling ChatGPT with model: gpt-5')
+      // STEP 1: Classification - Get ChatGPT response
+      console.log('🤖 STEP 1: Calling ChatGPT for classification with model: gpt-5')
       const completion = await openai.chat.completions.create({
-        model: 'gpt-5', // More widely available than GPT-4
+        model: 'gpt-5',
         messages: [
           { role: 'system', content: SYSTEM_PROMPT },
           { role: 'user', content: text }
         ],
         max_completion_tokens: 500,
-        response_format: { type: 'json_object' }, // This model supports JSON mode
+        response_format: { type: 'json_object' },
       })
 
       const responseText = completion.choices[0].message.content || '{"intent": "OTHER", "response": "Sorry, I didn\'t understand that.", "query": null}'
@@ -101,11 +219,26 @@ export async function POST(request: NextRequest) {
         console.error('❌ Failed to parse JSON:', e)
         console.error('Raw response was:', responseText)
 
-        // Try to extract useful info from non-JSON response
         parsedResponse = {
           intent: 'OTHER',
           response: responseText || 'Sorry, I didn\'t understand that.',
           query: null
+        }
+      }
+
+      // STEP 2: Normalization - Clean up query based on intent
+      console.log('🧹 STEP 2: Normalizing query...')
+      const originalQuery = parsedResponse.query
+      parsedResponse.query = await normalizeQuery(parsedResponse.intent, parsedResponse.query, text)
+
+      if (originalQuery !== parsedResponse.query) {
+        console.log(`✨ Query normalized: "${originalQuery}" → "${parsedResponse.query}"`)
+
+        // Update response to reflect normalized query
+        if (parsedResponse.intent === 'DOOR') {
+          parsedResponse.response = `Now opening the door at ${parsedResponse.query}`
+        } else if (parsedResponse.intent === 'NAVIGATION') {
+          parsedResponse.response = `Navigating to ${parsedResponse.query}`
         }
       }
 
