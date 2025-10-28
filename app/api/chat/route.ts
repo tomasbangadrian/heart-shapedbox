@@ -88,47 +88,54 @@ async function normalizeQuery(intent: string, query: string | null, originalText
   }
 }
 
-// Normalize Spotify queries (fix artist names, song titles) using web search
+// Normalize Spotify queries (fix artist names, song titles) using GPT-4 reasoning
 async function normalizeSpotifyQuery(query: string): Promise<string> {
   try {
     console.log('🎵 Normalizing Spotify query:', query)
 
-    // Use GPT-4 (gpt-5 doesn't exist yet) to fix obvious typos first
-    const normalizationPrompt = `You are a music expert. Fix any typos or misspellings in this music search query.
+    // Use GPT-4 with extended reasoning to fix typos and song titles
+    const normalizationPrompt = `You are a music expert with access to extensive song and artist databases.
+Your task is to correct typos and fix song/artist names to their EXACT official versions.
 
-Common errors:
-- "pete floyd" should be "pink floyd"
-- "the weeknd" is correct (not "the weekend")
-- "led zeplin" should be "led zeppelin"
-- "a great day for freedom with pete floyd" should be "a great day for freedom pink floyd"
+Important corrections to know:
+- "pete floyd" → "pink floyd"
+- "led zeplin" → "led zeppelin"
+- "through the eyes of the ruby" → "through the eyes of ruby" (Smashing Pumpkins song has no "the")
+- "the weeknd" is CORRECT (not "the weekend")
 
-Query: "${query}"
+Query to fix: "${query}"
 
-Return ONLY the corrected query text, nothing else. If the query looks correct, return it unchanged.`
+Instructions:
+1. Identify the song title and artist
+2. Fix any obvious misspellings in artist name
+3. Remove or correct extra words in song title (like extra "the", "a", etc.)
+4. Return ONLY the corrected "song title artist name" format
+
+If you're unsure, return the query unchanged. Do NOT add explanations.
+
+Corrected query:`
 
     const completion = await openai.chat.completions.create({
       model: 'gpt-4-turbo-preview',
       messages: [
-        { role: 'system', content: 'You are a music expert that fixes typos in artist and song names. Return only the corrected query, nothing else.' },
+        { role: 'system', content: 'You are a music expert. Return ONLY the corrected song and artist name, nothing else. No explanations.' },
         { role: 'user', content: normalizationPrompt }
       ],
       max_tokens: 100,
-      temperature: 0.3,
+      temperature: 0.1, // Very low temperature for consistency
     })
 
-    const gptResult = completion.choices[0].message.content?.trim() || query
-    console.log('🤖 GPT normalized Spotify query:', gptResult)
+    const normalized = completion.choices[0].message.content?.trim() || query
+    console.log('🤖 GPT normalized Spotify query:', normalized)
 
-    // Additional verification: If query changed significantly, use web search to verify
-    if (gptResult.toLowerCase() !== query.toLowerCase()) {
-      console.log('🌐 Verifying with web search...')
-      // For demo purposes, we trust GPT-4's music knowledge
-      // In production, you could search Spotify API or use web search here
-      return gptResult
-    }
+    // Clean up the response - remove any explanation text
+    const cleanedResult = normalized
+      .replace(/^(corrected query:|query:|result:)/i, '')
+      .trim()
+      .replace(/^["']|["']$/g, '') // Remove quotes if present
 
-    console.log('✅ Normalized Spotify query:', gptResult)
-    return gptResult
+    console.log('✅ Final normalized query:', cleanedResult)
+    return cleanedResult
   } catch (error: any) {
     console.error('❌ Spotify normalization error:', error.message)
     console.error('Full error:', error)
@@ -136,49 +143,70 @@ Return ONLY the corrected query text, nothing else. If the query looks correct, 
   }
 }
 
-// Normalize Norwegian addresses using GPT-4 and web search
+// Normalize Norwegian addresses using GPT-4 reasoning
 async function normalizeAddress(address: string, originalText: string): Promise<string> {
   try {
     console.log('🏠 Normalizing address:', address)
 
-    const normalizationPrompt = `You are an expert on Norwegian addresses, especially in Trondheim.
+    const normalizationPrompt = `You are an expert on Norwegian addresses in Trondheim. Your task is to normalize and correct Norwegian street addresses.
 
-Normalize this address to its full official form:
-- Expand abbreviated street names (e.g., "Halsesgatet" → "Dyre Halses gate")
-- Add city if missing (default to Trondheim if context suggests it)
-- Include postal code if you know it
-- Use proper Norwegian address formatting
+IMPORTANT: Handle common transcription errors:
+- "Stockbacken" (Swedish-like) → "Stokkbekken" (correct Norwegian)
+- "Halsesgatet" → "Dyre Halses gate"
+- Foreign-sounding spellings might be Norwegian streets with different spelling
+
+Known Trondheim addresses (since 2012+):
+- Stokkbekken (not "Stockbacken" or "Stockbakken")
+- Dyre Halses gate (not "Halsesgatet")
+- Munkegata
+- Elgeseter gate
 
 Original command: "${originalText}"
 Extracted address: "${address}"
 
-Return ONLY the normalized full address, nothing else.
+Your task:
+1. If address sounds Norwegian but spelled wrong, correct it (e.g., "Stockbacken" → "Stokkbekken")
+2. Expand abbreviations
+3. Add city "Trondheim" if missing
+4. Add postal code if you know it
+5. If address is completely unknown/invalid, return: "UNKNOWN: ${address}"
+
+Return ONLY the normalized address, nothing else. No explanations.
+
 Examples:
 - "Halsesgatet 13" → "Dyre Halses gate 13, 7045 Trondheim"
+- "Stockbacken 32" → "Stokkbekken 32, Trondheim"
 - "Munkegata 5" → "Munkegata 5, 7013 Trondheim"
-- "Elgeseter gate 1" → "Elgeseter gate 1, 7030 Trondheim"`
+
+Normalized address:`
 
     const completion = await openai.chat.completions.create({
       model: 'gpt-4-turbo-preview',
       messages: [
-        { role: 'system', content: 'You are a Norwegian address expert. Return only the normalized address, nothing else.' },
+        { role: 'system', content: 'You are a Norwegian address expert for Trondheim. Return ONLY the corrected address. No explanations or notes.' },
         { role: 'user', content: normalizationPrompt }
       ],
-      max_tokens: 100,
-      temperature: 0.3,
+      max_tokens: 150,
+      temperature: 0.1, // Very low for consistent corrections
     })
 
     const gptResult = completion.choices[0].message.content?.trim() || address
     console.log('🤖 GPT normalized address:', gptResult)
 
-    // If GPT made changes, that's our normalized address
-    if (gptResult.toLowerCase() !== address.toLowerCase()) {
-      console.log('✅ Address normalized by GPT')
-      return gptResult
+    // Clean up response - remove any explanation text
+    const cleanedResult = gptResult
+      .replace(/^(normalized address:|address:|result:)/i, '')
+      .trim()
+      .replace(/^["']|["']$/g, '') // Remove quotes
+
+    // If GPT says UNKNOWN, return just the address without explanation
+    if (cleanedResult.startsWith('UNKNOWN:')) {
+      console.log('⚠️ Address not recognized by GPT')
+      return address // Return original rather than error message
     }
 
-    console.log('✅ Normalized address:', gptResult)
-    return gptResult
+    console.log('✅ Final normalized address:', cleanedResult)
+    return cleanedResult
   } catch (error: any) {
     console.error('❌ Address normalization error:', error.message)
     console.error('Full error:', error)
