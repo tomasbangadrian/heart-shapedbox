@@ -75,15 +75,15 @@ export default function VoiceRecorder() {
     }
   }
 
-  const handleSpotifyCommand = async (query: string) => {
+  const handleSpotifyCommand = async (query: string): Promise<{ success: boolean; message: string }> => {
     if (!spotifyAccessToken) {
       console.log('❌ No Spotify access token')
-      return 'You must log in to Spotify first'
+      return { success: false, message: 'You must log in to Spotify first' }
     }
 
     if (!spotifyDeviceId) {
       console.log('❌ No Spotify device ID - player not ready')
-      return 'Spotify Web Player is not ready yet. Wait and try again.'
+      return { success: false, message: 'Spotify Web Player is not ready yet. Wait and try again.' }
     }
 
     console.log('🔍 Searching Spotify for:', query)
@@ -99,7 +99,7 @@ export default function VoiceRecorder() {
       if (!searchResponse.ok) {
         const errorText = await searchResponse.text()
         console.error('❌ Search failed:', errorText)
-        return 'Could not find the song on Spotify'
+        return { success: false, message: 'Could not find the song on Spotify' }
       }
 
       const track = await searchResponse.json()
@@ -120,14 +120,14 @@ export default function VoiceRecorder() {
       if (!playResponse.ok) {
         const errorText = await playResponse.text()
         console.error('❌ Play failed:', errorText)
-        return 'Could not play the song. Check that you have Spotify Premium.'
+        return { success: false, message: 'Could not play the song. Check that you have Spotify Premium.' }
       }
 
       console.log('✅ Now playing!')
-      return `Now playing ${track.name} by ${track.artist} on Spotify`
+      return { success: true, message: `Now playing ${track.name} by ${track.artist} on Spotify` }
     } catch (error) {
       console.error('❌ Spotify command error:', error)
-      return 'Something went wrong with Spotify'
+      return { success: false, message: 'Something went wrong with Spotify' }
     }
   }
 
@@ -174,16 +174,48 @@ export default function VoiceRecorder() {
         throw new Error('Chat API feilet')
       }
 
-      const { response, audioUrl, intent, spotifyQuery } = await chatResponse.json()
+      const { response, audioUrl, intent, spotifyQuery, reasoning, confidence } = await chatResponse.json()
 
-      console.log('🤖 ChatGPT Response:', { intent, response, spotifyQuery })
+      console.log('🤖 ChatGPT Response:', { intent, response, spotifyQuery, reasoning, confidence })
 
       let finalResponse = response
 
-      // Handle Spotify commands
+      // Handle Spotify commands with intelligent retry
       if (intent === 'SPOTIFY' && spotifyQuery) {
         console.log('🎵 Spotify command detected, query:', spotifyQuery)
-        finalResponse = await handleSpotifyCommand(spotifyQuery)
+        const spotifyResult = await handleSpotifyCommand(spotifyQuery)
+
+        if (!spotifyResult.success) {
+          console.log('❌ First Spotify attempt failed, asking ChatGPT to reconsider...')
+
+          // Retry with ChatGPT to get a better query
+          const retryResponse = await fetch('/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              text,
+              hasSpotify: !!spotifyAccessToken,
+              retryWithQuery: spotifyQuery
+            }),
+          })
+
+          if (retryResponse.ok) {
+            const retryData = await retryResponse.json()
+            console.log('🔄 Retry response:', retryData)
+
+            if (retryData.spotifyQuery && retryData.spotifyQuery !== spotifyQuery) {
+              console.log('🎵 Trying corrected query:', retryData.spotifyQuery)
+              const retrySpotifyResult = await handleSpotifyCommand(retryData.spotifyQuery)
+              finalResponse = retrySpotifyResult.message
+            } else {
+              finalResponse = spotifyResult.message
+            }
+          } else {
+            finalResponse = spotifyResult.message
+          }
+        } else {
+          finalResponse = spotifyResult.message
+        }
       } else if (intent === 'SPOTIFY' && !spotifyQuery) {
         console.log('⚠️ Spotify intent but no query extracted')
         finalResponse = 'I didn\'t understand which song you want to play. Try again.'
@@ -243,16 +275,48 @@ export default function VoiceRecorder() {
         throw new Error('Chat API feilet')
       }
 
-      const { response, audioUrl, intent, spotifyQuery } = await chatResponse.json()
+      const { response, audioUrl, intent, spotifyQuery, reasoning, confidence } = await chatResponse.json()
 
-      console.log('🤖 ChatGPT Response:', { intent, response, spotifyQuery })
+      console.log('🤖 ChatGPT Response:', { intent, response, spotifyQuery, reasoning, confidence })
 
       let finalResponse = response
 
-      // Handle Spotify commands
+      // Handle Spotify commands with intelligent retry
       if (intent === 'SPOTIFY' && spotifyQuery) {
         console.log('🎵 Spotify command detected, query:', spotifyQuery)
-        finalResponse = await handleSpotifyCommand(spotifyQuery)
+        const spotifyResult = await handleSpotifyCommand(spotifyQuery)
+
+        if (!spotifyResult.success) {
+          console.log('❌ First Spotify attempt failed, asking ChatGPT to reconsider...')
+
+          // Retry with ChatGPT to get a better query
+          const retryResponse = await fetch('/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              text,
+              hasSpotify: !!spotifyAccessToken,
+              retryWithQuery: spotifyQuery
+            }),
+          })
+
+          if (retryResponse.ok) {
+            const retryData = await retryResponse.json()
+            console.log('🔄 Retry response:', retryData)
+
+            if (retryData.spotifyQuery && retryData.spotifyQuery !== spotifyQuery) {
+              console.log('🎵 Trying corrected query:', retryData.spotifyQuery)
+              const retrySpotifyResult = await handleSpotifyCommand(retryData.spotifyQuery)
+              finalResponse = retrySpotifyResult.message
+            } else {
+              finalResponse = spotifyResult.message
+            }
+          } else {
+            finalResponse = spotifyResult.message
+          }
+        } else {
+          finalResponse = spotifyResult.message
+        }
       } else if (intent === 'SPOTIFY' && !spotifyQuery) {
         console.log('⚠️ Spotify intent but no query extracted')
         finalResponse = 'I didn\'t understand which song you want to play. Try again.'
