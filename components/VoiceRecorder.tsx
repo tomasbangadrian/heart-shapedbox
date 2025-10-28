@@ -90,7 +90,7 @@ export default function VoiceRecorder() {
     }
   }
 
-  const handleSpotifyCommand = async (query: string) => {
+  const handleSpotifyCommand = async (query: string, track?: string, artist?: string) => {
     if (!spotifyAccessToken) {
       console.log('❌ No Spotify access token')
       return 'You must log in to Spotify first'
@@ -102,13 +102,21 @@ export default function VoiceRecorder() {
     }
 
     console.log('🔍 Searching Spotify for:', query)
+    if (track && artist) {
+      console.log(`🎵 Using extracted: Track="${track}", Artist="${artist}"`)
+    }
 
     try {
       // Search for the track
-      const searchResponse = await fetch('/api/spotify/search', {
+      const searchResponse: Response = await fetch('/api/spotify/search', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query, accessToken: spotifyAccessToken }),
+        body: JSON.stringify({
+          query,
+          track,
+          artist,
+          accessToken: spotifyAccessToken
+        }),
       })
 
       if (!searchResponse.ok) {
@@ -117,8 +125,8 @@ export default function VoiceRecorder() {
         return 'Could not find the song on Spotify'
       }
 
-      const track = await searchResponse.json()
-      console.log('✅ Found track:', track.name, 'by', track.artist)
+      const foundTrack = await searchResponse.json()
+      console.log('✅ Found track:', foundTrack.name, 'by', foundTrack.artist)
 
       // Play the track
       console.log('▶️ Playing track on device:', spotifyDeviceId)
@@ -126,7 +134,7 @@ export default function VoiceRecorder() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          uri: track.uri,
+          uri: foundTrack.uri,
           accessToken: spotifyAccessToken,
           deviceId: spotifyDeviceId,
         }),
@@ -139,7 +147,7 @@ export default function VoiceRecorder() {
       }
 
       console.log('✅ Now playing!')
-      return `Now playing ${track.name} by ${track.artist} on Spotify`
+      return `Now playing ${foundTrack.name} by ${foundTrack.artist} on Spotify`
     } catch (error) {
       console.error('❌ Spotify command error:', error)
       return 'Something went wrong with Spotify'
@@ -189,9 +197,9 @@ export default function VoiceRecorder() {
         throw new Error('Chat API feilet')
       }
 
-      const { response, audioUrl, intent, spotifyQuery, pipelineDetails } = await chatResponse.json()
+      const { response, audioUrl, intent, spotifyQuery, spotifyTrack, spotifyArtist, pipelineDetails } = await chatResponse.json()
 
-      console.log('🤖 ChatGPT Response:', { intent, response, spotifyQuery })
+      console.log('🤖 ChatGPT Response:', { intent, response, spotifyQuery, spotifyTrack, spotifyArtist })
       console.log('🔍 Pipeline Details:', pipelineDetails)
 
       let finalResponse = response
@@ -199,7 +207,7 @@ export default function VoiceRecorder() {
       // Handle Spotify commands
       if (intent === 'SPOTIFY' && spotifyQuery) {
         console.log('🎵 Spotify command detected, query:', spotifyQuery)
-        finalResponse = await handleSpotifyCommand(spotifyQuery)
+        finalResponse = await handleSpotifyCommand(spotifyQuery, spotifyTrack, spotifyArtist)
       } else if (intent === 'SPOTIFY' && !spotifyQuery) {
         console.log('⚠️ Spotify intent but no query extracted')
         finalResponse = 'I didn\'t understand which song you want to play. Try again.'
@@ -260,9 +268,9 @@ export default function VoiceRecorder() {
         throw new Error('Chat API feilet')
       }
 
-      const { response, audioUrl, intent, spotifyQuery, pipelineDetails } = await chatResponse.json()
+      const { response, audioUrl, intent, spotifyQuery, spotifyTrack, spotifyArtist, pipelineDetails } = await chatResponse.json()
 
-      console.log('🤖 ChatGPT Response:', { intent, response, spotifyQuery })
+      console.log('🤖 ChatGPT Response:', { intent, response, spotifyQuery, spotifyTrack, spotifyArtist })
       console.log('🔍 Pipeline Details:', pipelineDetails)
 
       let finalResponse = response
@@ -270,7 +278,7 @@ export default function VoiceRecorder() {
       // Handle Spotify commands
       if (intent === 'SPOTIFY' && spotifyQuery) {
         console.log('🎵 Spotify command detected, query:', spotifyQuery)
-        finalResponse = await handleSpotifyCommand(spotifyQuery)
+        finalResponse = await handleSpotifyCommand(spotifyQuery, spotifyTrack, spotifyArtist)
       } else if (intent === 'SPOTIFY' && !spotifyQuery) {
         console.log('⚠️ Spotify intent but no query extracted')
         finalResponse = 'I didn\'t understand which song you want to play. Try again.'

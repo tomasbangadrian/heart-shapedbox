@@ -61,85 +61,104 @@ Examples of complete responses:
 ALWAYS respond with valid JSON.`
 
 // Normalize query based on intent using web search or reasoning
-async function normalizeQuery(intent: string, query: string | null, originalText: string): Promise<string | null> {
-  if (!query) return null
+async function normalizeQuery(intent: string, query: string | null, originalText: string): Promise<{ query: string | null; spotifyTrack?: string; spotifyArtist?: string }> {
+  if (!query) return { query: null }
 
   try {
     console.log(`🧹 Normalizing ${intent} query:`, query)
 
     switch (intent) {
-      case 'SPOTIFY':
-        // Fix artist/song name typos and variations
-        return await normalizeSpotifyQuery(query)
+      case 'SPOTIFY': {
+        // Fix artist/song name typos and extract track/artist separately
+        const result = await normalizeSpotifyQuery(query)
+        return {
+          query: result.fullQuery,
+          spotifyTrack: result.track,
+          spotifyArtist: result.artist
+        }
+      }
 
       case 'DOOR':
-      case 'NAVIGATION':
+      case 'NAVIGATION': {
         // Normalize Norwegian addresses
-        return await normalizeAddress(query, originalText)
+        const normalized = await normalizeAddress(query, originalText)
+        return { query: normalized }
+      }
 
       default:
         // No normalization needed for other intents
-        return query
+        return { query }
     }
   } catch (error: any) {
     console.error('❌ Normalization error:', error.message)
     // Return original query if normalization fails
-    return query
+    return { query }
   }
 }
 
-// Normalize Spotify queries (fix artist names, song titles) using GPT-4 reasoning
-async function normalizeSpotifyQuery(query: string): Promise<string> {
+// Normalize Spotify queries and return structured data
+async function normalizeSpotifyQuery(query: string): Promise<{ track: string; artist: string; fullQuery: string }> {
   try {
     console.log('🎵 Normalizing Spotify query:', query)
 
-    // Use GPT-4 with extended reasoning to fix typos and song titles
-    const normalizationPrompt = `You are a music expert with access to extensive song and artist databases.
-Your task is to correct typos and fix song/artist names to their EXACT official versions.
+    // Use GPT-4 to extract and correct track and artist separately
+    const normalizationPrompt = `You are a music expert. Extract and correct the song title and artist name from this query.
 
 Important corrections to know:
-- "pete floyd" → "pink floyd"
-- "led zeplin" → "led zeppelin"
-- "through the eyes of the ruby" → "through the eyes of ruby" (Smashing Pumpkins song has no "the")
+- "pete floyd" → "Pink Floyd"
+- "led zeplin" → "Led Zeppelin"
+- "through the eyes of the ruby" → "Through the Eyes of Ruby" (Smashing Pumpkins song)
+- "thru" → "Through"
 - "the weeknd" is CORRECT (not "the weekend")
 
-Query to fix: "${query}"
+Query: "${query}"
 
-Instructions:
-1. Identify the song title and artist
-2. Fix any obvious misspellings in artist name
-3. Remove or correct extra words in song title (like extra "the", "a", etc.)
-4. Return ONLY the corrected "song title artist name" format
+Return ONLY a JSON object in this exact format, nothing else:
+{"track": "Song Title", "artist": "Artist Name"}
 
-If you're unsure, return the query unchanged. Do NOT add explanations.
-
-Corrected query:`
+Example:
+Input: "thru the eyes of the ruby smashing pumpkins"
+Output: {"track": "Through the Eyes of Ruby", "artist": "The Smashing Pumpkins"}`
 
     const completion = await openai.chat.completions.create({
       model: 'gpt-4-turbo-preview',
       messages: [
-        { role: 'system', content: 'You are a music expert. Return ONLY the corrected song and artist name, nothing else. No explanations.' },
+        { role: 'system', content: 'You are a music expert. Return ONLY valid JSON with track and artist. No explanations.' },
         { role: 'user', content: normalizationPrompt }
       ],
-      max_tokens: 100,
-      temperature: 0.1, // Very low temperature for consistency
+      max_tokens: 150,
+      temperature: 0.1,
+      response_format: { type: 'json_object' },
     })
 
-    const normalized = completion.choices[0].message.content?.trim() || query
-    console.log('🤖 GPT normalized Spotify query:', normalized)
+    const result = completion.choices[0].message.content?.trim() || '{}'
+    console.log('🤖 GPT result:', result)
 
-    // Clean up the response - remove any explanation text
-    const cleanedResult = normalized
-      .replace(/^(corrected query:|query:|result:)/i, '')
-      .trim()
-      .replace(/^["']|["']$/g, '') // Remove quotes if present
+    const parsed = JSON.parse(result)
+    const track = parsed.track || ''
+    const artist = parsed.artist || ''
 
-    console.log('✅ Final normalized query:', cleanedResult)
-    return cleanedResult
+    if (!track || !artist) {
+      console.log('⚠️ Could not extract track/artist, using original query')
+      return {
+        track: query,
+        artist: '',
+        fullQuery: query
+      }
+    }
+
+    const fullQuery = `${track} ${artist}`
+    console.log(`✅ Normalized: Track="${track}", Artist="${artist}"`)
+
+    return { track, artist, fullQuery }
   } catch (error: any) {
     console.error('❌ Spotify normalization error:', error.message)
     console.error('Full error:', error)
-    return query
+    return {
+      track: query,
+      artist: '',
+      fullQuery: query
+    }
   }
 }
 
@@ -283,7 +302,16 @@ export async function POST(request: NextRequest) {
       console.log('Original query:', parsedResponse.query)
 
       originalQuery = parsedResponse.query
-      parsedResponse.query = await normalizeQuery(parsedResponse.intent, parsedResponse.query, text)
+      const normalizeResult = await normalizeQuery(parsedResponse.intent, parsedResponse.query, text)
+
+      parsedResponse.query = normalizeResult.query
+
+      // Store Spotify track/artist for advanced search
+      if (normalizeResult.spotifyTrack && normalizeResult.spotifyArtist) {
+        parsedResponse.spotifyTrack = normalizeResult.spotifyTrack
+        parsedResponse.spotifyArtist = normalizeResult.spotifyArtist
+        console.log(`🎵 Extracted: Track="${normalizeResult.spotifyTrack}", Artist="${normalizeResult.spotifyArtist}"`)
+      }
 
       console.log('After normalization:', parsedResponse.query)
       console.log('Was normalized?', originalQuery !== parsedResponse.query)
@@ -343,6 +371,8 @@ export async function POST(request: NextRequest) {
         audioUrl: audioUrl,
         intent: parsedResponse.intent,
         spotifyQuery: parsedResponse.query,
+        spotifyTrack: parsedResponse.spotifyTrack,
+        spotifyArtist: parsedResponse.spotifyArtist,
         // Pipeline details for debugging
         pipelineDetails: {
           step1_transcription: text,
@@ -353,6 +383,8 @@ export async function POST(request: NextRequest) {
           step3_normalization: {
             originalQuery: originalQuery,
             normalizedQuery: parsedResponse.query,
+            spotifyTrack: parsedResponse.spotifyTrack,
+            spotifyArtist: parsedResponse.spotifyArtist,
             wasNormalized: originalQuery !== parsedResponse.query,
           },
           step4_finalResponse: parsedResponse.response,
@@ -366,6 +398,8 @@ export async function POST(request: NextRequest) {
         audioUrl: null,
         intent: parsedResponse.intent,
         spotifyQuery: parsedResponse.query,
+        spotifyTrack: parsedResponse.spotifyTrack,
+        spotifyArtist: parsedResponse.spotifyArtist,
         // Pipeline details for debugging
         pipelineDetails: {
           step1_transcription: text,
@@ -376,6 +410,8 @@ export async function POST(request: NextRequest) {
           step3_normalization: {
             originalQuery: originalQuery,
             normalizedQuery: parsedResponse.query,
+            spotifyTrack: parsedResponse.spotifyTrack,
+            spotifyArtist: parsedResponse.spotifyArtist,
             wasNormalized: originalQuery !== parsedResponse.query,
           },
           step4_finalResponse: parsedResponse.response,
