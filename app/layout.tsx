@@ -3,7 +3,7 @@ import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
   title: 'Voice Assistant',
-  description: 'AI-drevet stemmeassistent med ChatGPT og Whisper',
+  description: 'AI-powered voice assistant with ChatGPT and Whisper',
   icons: {
     icon: '/favicon.ico',
   },
@@ -15,7 +15,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="no">
+    <html lang="en">
       <body>{children}</body>
     </html>
   )

@@ -91,9 +91,9 @@ export default function SpotifyPlayer({ accessToken, onDeviceReady }: SpotifyPla
     <div style={styles.container}>
       <div style={styles.status}>
         {isReady ? (
-          <span style={styles.statusReady}>🎵 Spotify klar</span>
+          <span style={styles.statusReady}>🎵 Spotify ready</span>
         ) : (
-          <span style={styles.statusLoading}>⏳ Laster Spotify...</span>
+          <span style={styles.statusLoading}>⏳ Loading Spotify...</span>
         )}
       </div>
     </div>

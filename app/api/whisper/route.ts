@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
 
     if (!audioFile) {
       return NextResponse.json(
-        { error: 'Ingen lydfil mottatt' },
+        { error: 'No audio file received' },
         { status: 400 }
       )
     }
@@ -21,14 +21,14 @@ export async function POST(request: NextRequest) {
     const transcription = await openai.audio.transcriptions.create({
       file: audioFile,
       model: 'whisper-1',
-      language: 'no', // Norwegian
+      language: 'en', // English
     })
 
     return NextResponse.json({ text: transcription.text })
   } catch (error) {
     console.error('Whisper API error:', error)
     return NextResponse.json(
-      { error: 'Feil ved transkribering av lyd' },
+      { error: 'Error transcribing audio' },
       { status: 500 }
     )
   }

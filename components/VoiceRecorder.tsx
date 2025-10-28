@@ -28,7 +28,7 @@ export default function VoiceRecorder() {
     const error = params.get('error')
 
     if (error) {
-      alert('Spotify authentication feilet: ' + error)
+      alert('Spotify authentication failed: ' + error)
     }
 
     if (accessToken) {
@@ -64,7 +64,7 @@ export default function VoiceRecorder() {
       setIsRecording(true)
     } catch (error) {
       console.error('Error accessing microphone:', error)
-      alert('Kunne ikke få tilgang til mikrofonen. Sjekk tillatelser.')
+      alert('Could not access microphone. Check permissions.')
     }
   }
 
@@ -78,12 +78,12 @@ export default function VoiceRecorder() {
   const handleSpotifyCommand = async (query: string) => {
     if (!spotifyAccessToken) {
       console.log('❌ No Spotify access token')
-      return 'Du må logge inn på Spotify først'
+      return 'You must log in to Spotify first'
     }
 
     if (!spotifyDeviceId) {
       console.log('❌ No Spotify device ID - player not ready')
-      return 'Spotify Web Player er ikke klar ennå. Vent litt og prøv igjen.'
+      return 'Spotify Web Player is not ready yet. Wait and try again.'
     }
 
     console.log('🔍 Searching Spotify for:', query)
@@ -99,7 +99,7 @@ export default function VoiceRecorder() {
       if (!searchResponse.ok) {
         const errorText = await searchResponse.text()
         console.error('❌ Search failed:', errorText)
-        return 'Kunne ikke finne låten på Spotify'
+        return 'Could not find the song on Spotify'
       }
 
       const track = await searchResponse.json()
@@ -120,14 +120,14 @@ export default function VoiceRecorder() {
       if (!playResponse.ok) {
         const errorText = await playResponse.text()
         console.error('❌ Play failed:', errorText)
-        return 'Kunne ikke spille låten. Sjekk at du har Spotify Premium.'
+        return 'Could not play the song. Check that you have Spotify Premium.'
       }
 
       console.log('✅ Now playing!')
-      return `Nå spiller jeg ${track.name} av ${track.artist} på Spotify`
+      return `Now playing ${track.name} by ${track.artist} on Spotify`
     } catch (error) {
       console.error('❌ Spotify command error:', error)
-      return 'Noe gikk galt med Spotify'
+      return 'Something went wrong with Spotify'
     }
   }
 
@@ -186,7 +186,7 @@ export default function VoiceRecorder() {
         finalResponse = await handleSpotifyCommand(spotifyQuery)
       } else if (intent === 'SPOTIFY' && !spotifyQuery) {
         console.log('⚠️ Spotify intent but no query extracted')
-        finalResponse = 'Jeg forstod ikke hvilken sang du vil spille. Prøv igjen.'
+        finalResponse = 'I didn\'t understand which song you want to play. Try again.'
       }
 
       // Add assistant message
@@ -205,7 +205,7 @@ export default function VoiceRecorder() {
 
     } catch (error) {
       console.error('Error processing audio:', error)
-      alert('Noe gikk galt. Prøv igjen.')
+      alert('Something went wrong. Try again.')
     } finally {
       setIsProcessing(false)
     }
@@ -255,7 +255,7 @@ export default function VoiceRecorder() {
         finalResponse = await handleSpotifyCommand(spotifyQuery)
       } else if (intent === 'SPOTIFY' && !spotifyQuery) {
         console.log('⚠️ Spotify intent but no query extracted')
-        finalResponse = 'Jeg forstod ikke hvilken sang du vil spille. Prøv igjen.'
+        finalResponse = 'I didn\'t understand which song you want to play. Try again.'
       }
 
       // Add assistant message
@@ -274,7 +274,7 @@ export default function VoiceRecorder() {
 
     } catch (error) {
       console.error('Error processing text:', error)
-      alert('Noe gikk galt. Prøv igjen.')
+      alert('Something went wrong. Try again.')
     } finally {
       setIsProcessing(false)
     }
@@ -291,21 +291,21 @@ export default function VoiceRecorder() {
   return (
     <div style={styles.container}>
       <div style={styles.header}>
-        <h1 style={styles.title}>🎤 Stemmeassistent</h1>
-        <p style={styles.subtitle}>Trykk og hold for å snakke</p>
+        <h1 style={styles.title}>🎤 Voice Assistant</h1>
+        <p style={styles.subtitle}>Press and hold to speak</p>
       </div>
 
       {/* Spotify Login/Status */}
       {!spotifyAccessToken ? (
         <div style={styles.spotifyLogin}>
           <p style={styles.spotifyText}>
-            Logg inn på Spotify for å spille musikk
+            Log in to Spotify to play music
           </p>
           <button
             style={styles.spotifyButton}
             onClick={() => window.location.href = '/api/spotify/login'}
           >
-            🎵 Logg inn med Spotify
+            🎵 Log in with Spotify
           </button>
         </div>
       ) : (
@@ -328,24 +328,24 @@ export default function VoiceRecorder() {
           disabled={isProcessing}
         >
           {isProcessing ? (
-            <span style={styles.buttonText}>⏳ Behandler...</span>
+            <span style={styles.buttonText}>⏳ Processing...</span>
           ) : isRecording ? (
-            <span style={styles.buttonText}>🔴 Snakker...</span>
+            <span style={styles.buttonText}>🔴 Speaking...</span>
           ) : (
-            <span style={styles.buttonText}>🎤 Hold for å snakke</span>
+            <span style={styles.buttonText}>🎤 Hold to speak</span>
           )}
         </button>
       </div>
 
       {/* Text Input Alternative */}
       <div style={styles.textInputSection}>
-        <p style={styles.orText}>eller skriv kommando manuelt:</p>
+        <p style={styles.orText}>or type command manually:</p>
         <form onSubmit={handleTextSubmit} style={styles.textForm}>
           <input
             type="text"
             value={textInput}
             onChange={(e) => setTextInput(e.target.value)}
-            placeholder='F.eks: "spill great day for freedom av pink floyd"'
+            placeholder='E.g.: "play great day for freedom by pink floyd"'
             style={styles.textInput}
             disabled={isProcessing}
           />
@@ -360,29 +360,29 @@ export default function VoiceRecorder() {
       </div>
 
       <div style={styles.instructionsBox}>
-        <h3 style={styles.instructionsTitle}>💡 Hvordan bruke</h3>
+        <h3 style={styles.instructionsTitle}>💡 How to use</h3>
         <ol style={styles.instructionsList}>
-          <li><strong>Hold inne</strong> den store knappen over</li>
-          <li><strong>Snakk</strong> tydelig mens du holder</li>
-          <li><strong>Slipp</strong> når du er ferdig</li>
+          <li><strong>Hold down</strong> the large button above</li>
+          <li><strong>Speak</strong> clearly while holding</li>
+          <li><strong>Release</strong> when finished</li>
         </ol>
         <div style={styles.examplesBox}>
-          <p style={styles.examplesTitle}><strong>📝 Eksempler på kommandoer:</strong></p>
+          <p style={styles.examplesTitle}><strong>📝 Example commands:</strong></p>
           <ul style={styles.examplesList}>
-            <li>"Hva er hovedstaden i Norge?"</li>
-            <li>"Spill Bohemian Rhapsody"</li>
-            <li>"Spill Aurora på Spotify"</li>
-            <li>"Still volum på 50%"</li>
+            <li>"What is the capital of France?"</li>
+            <li>"Play Bohemian Rhapsody"</li>
+            <li>"Play Aurora on Spotify"</li>
+            <li>"Set volume to 50%"</li>
           </ul>
         </div>
       </div>
 
       <div style={styles.messagesContainer}>
-        <h2 style={styles.messagesTitle}>Samtalehistorikk</h2>
+        <h2 style={styles.messagesTitle}>Conversation History</h2>
         <div style={styles.messagesList}>
           {messages.length === 0 ? (
             <p style={styles.emptyState}>
-              Ingen meldinger ennå. Start med å trykke og holde knappen for å snakke.
+              No messages yet. Start by pressing and holding the button to speak.
             </p>
           ) : (
             messages.map((message, index) => (
@@ -394,11 +394,11 @@ export default function VoiceRecorder() {
                 }}
               >
                 <div style={styles.messageRole}>
-                  {message.role === 'user' ? '👤 Deg' : '🤖 Assistent'}
+                  {message.role === 'user' ? '👤 You' : '🤖 Assistant'}
                 </div>
                 <div style={styles.messageContent}>{message.content}</div>
                 <div style={styles.messageTime}>
-                  {message.timestamp.toLocaleTimeString('no-NO')}
+                  {message.timestamp.toLocaleTimeString('en-US')}
                 </div>
               </div>
             ))
