@@ -100,8 +100,8 @@ export async function POST(request: NextRequest) {
     let parsedResponse: any
 
     try {
-      // Use GPT-4o for better reasoning capabilities
-      console.log('🤖 Calling ChatGPT with model: gpt-4o-mini (cost-effective with good reasoning)')
+      // Use GPT-5 with high reasoning for maximum accuracy in transcription correction
+      console.log('🤖 Calling ChatGPT with model: gpt-5 (deep reasoning model with high thinking effort)')
 
       // Build context for retry scenarios
       let userMessage = text
@@ -110,7 +110,7 @@ export async function POST(request: NextRequest) {
       }
 
       const completion = await openai.chat.completions.create({
-        model: 'gpt-4o-mini', // Good balance of cost and intelligence
+        model: 'gpt-5', // GPT-5 with deep reasoning capabilities
         messages: [
           { role: 'system', content: SYSTEM_PROMPT },
           { role: 'user', content: userMessage }
@@ -118,6 +118,7 @@ export async function POST(request: NextRequest) {
         temperature: 0.3, // Lower temperature for more consistent, factual responses
         max_completion_tokens: 800,
         response_format: { type: 'json_object' },
+        reasoning_effort: 'high', // Maximum reasoning for complex transcription error correction
       })
 
       const responseText = completion.choices[0].message.content || '{"intent": "OTHER", "response": "Sorry, I didn\'t understand that.", "query": null, "reasoning": "No response generated", "confidence": "low"}'
