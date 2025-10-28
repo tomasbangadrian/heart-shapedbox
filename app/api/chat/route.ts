@@ -61,7 +61,7 @@ Examples of complete responses:
 ALWAYS respond with valid JSON.`
 
 // Normalize query based on intent using web search or reasoning
-async function normalizeQuery(intent: string, query: string | null, originalText: string): Promise<{ query: string | null; spotifyTrack?: string; spotifyArtist?: string }> {
+async function normalizeQuery(intent: string, query: string | null, originalText: string, userLibrary?: any[]): Promise<{ query: string | null; spotifyTrack?: string; spotifyArtist?: string }> {
   if (!query) return { query: null }
 
   try {
@@ -70,7 +70,7 @@ async function normalizeQuery(intent: string, query: string | null, originalText
     switch (intent) {
       case 'SPOTIFY': {
         // Fix artist/song name typos and extract track/artist separately
-        const result = await normalizeSpotifyQuery(query)
+        const result = await normalizeSpotifyQuery(query, userLibrary)
         return {
           query: result.fullQuery,
           spotifyTrack: result.track,
@@ -97,25 +97,28 @@ async function normalizeQuery(intent: string, query: string | null, originalText
 }
 
 // Normalize Spotify queries and return structured data
-async function normalizeSpotifyQuery(query: string): Promise<{ track: string; artist: string; fullQuery: string }> {
+async function normalizeSpotifyQuery(query: string, userLibrary?: any[]): Promise<{ track: string; artist: string; fullQuery: string }> {
   try {
     console.log('🎵 Normalizing Spotify query:', query)
+    if (userLibrary && userLibrary.length > 0) {
+      console.log(`📚 Using user library with ${userLibrary.length} tracks`)
+    }
+
+    // Build library context string
+    const libraryContext = userLibrary && userLibrary.length > 0
+      ? `\n\nUser's Spotify Library (${userLibrary.length} saved tracks):\n${userLibrary.map((t: any) => `- "${t.track}" by ${t.artist}`).join('\n')}\n`
+      : ''
 
     // Use GPT-4 to extract and correct track and artist separately
     const normalizationPrompt = `You are a music expert. Extract and correct the song title and artist name from this query.
-
-Important corrections to know:
-- "pete floyd" → "Pink Floyd"
-- "led zeplin" → "Led Zeppelin"
-- "the weeknd" is CORRECT (not "the weekend")
-
-IMPORTANT: The Smashing Pumpkins has TWO different songs:
-1. "Eye" - a song with just this one word as title
-2. "Thru the Eyes of Ruby" - a DIFFERENT song (note: spelled "Thru" not "Through")
-
-When user says "through the eyes of ruby" or "thru the eyes of ruby":
-- Use the EXACT official title: "Thru the Eyes of Ruby" (with "Thru")
-- Do NOT change it to "Eye" - these are different songs!
+${libraryContext}
+Important instructions:
+1. If the query matches a song in the user's library, use the EXACT title and artist from the library
+2. This resolves ambiguities (e.g., if user has "Thru the Eyes of Ruby" in library, use that exact title)
+3. For common artist typos:
+   - "pete floyd" → "Pink Floyd"
+   - "led zeplin" → "Led Zeppelin"
+   - "the weeknd" is CORRECT (not "the weekend")
 
 Query: "${query}"
 
@@ -123,6 +126,7 @@ Return ONLY a JSON object in this exact format, nothing else:
 {"track": "Song Title", "artist": "Artist Name"}
 
 Examples:
+${userLibrary && userLibrary.length > 0 ? 'User has library - prioritize exact matches from library' : ''}
 Input: "through the eyes of ruby smashing pumpkins"
 Output: {"track": "Thru the Eyes of Ruby", "artist": "The Smashing Pumpkins"}
 
@@ -247,7 +251,7 @@ Normalized address:`
 
 export async function POST(request: NextRequest) {
   try {
-    const { text, hasSpotify } = await request.json()
+    const { text, hasSpotify, userLibrary } = await request.json()
 
     console.log('📝 User text:', text)
 
@@ -314,7 +318,7 @@ export async function POST(request: NextRequest) {
       console.log('Original query:', parsedResponse.query)
 
       originalQuery = parsedResponse.query
-      const normalizeResult = await normalizeQuery(parsedResponse.intent, parsedResponse.query, text)
+      const normalizeResult = await normalizeQuery(parsedResponse.intent, parsedResponse.query, text, userLibrary)
 
       parsedResponse.query = normalizeResult.query
 
