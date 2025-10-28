@@ -2,6 +2,11 @@
 
 import { useState, useRef, useEffect } from 'react'
 import SpotifyPlayer from './SpotifyPlayer'
+import { useAuth } from '@/lib/context/AuthContext'
+import { useConversations } from '@/lib/hooks/useConversations'
+import { uploadAudio, saveAudioRecord } from '@/lib/utils/audioStorage'
+import { saveTranscription } from '@/lib/utils/transcriptionStorage'
+import { saveIntentClassification } from '@/lib/utils/intentStorage'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -10,6 +15,8 @@ interface Message {
 }
 
 export default function VoiceRecorder() {
+  const { user } = useAuth()
+  const { conversations, addConversation } = useConversations()
   const [isRecording, setIsRecording] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
   const [messages, setMessages] = useState<Message[]>([])
@@ -42,6 +49,11 @@ export default function VoiceRecorder() {
   }, [])
 
   const startRecording = async () => {
+    if (!user) {
+      alert('Du må være logget inn for å bruke stemmeassistenten')
+      return
+    }
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       const mediaRecorder = new MediaRecorder(stream)
@@ -132,10 +144,31 @@ export default function VoiceRecorder() {
   }
 
   const processAudio = async (audioBlob: Blob) => {
+    if (!user) return
+
     setIsProcessing(true)
 
     try {
-      // Send audio to Whisper API
+      // 1. Last opp lyd til Supabase Storage (hvis tilgjengelig)
+      let audioRecordId = null
+      try {
+        const uploadedAudioUrl = await uploadAudio(audioBlob, user.id)
+
+        if (uploadedAudioUrl) {
+          const audioRecord = await saveAudioRecord(
+            user.id,
+            uploadedAudioUrl,
+            0, // duration (kan beregnes hvis nødvendig)
+            audioBlob.size
+          )
+          audioRecordId = audioRecord.id
+        }
+      } catch (storageError) {
+        console.log('⚠️ Could not save audio to storage:', storageError)
+        // Continue without audio storage
+      }
+
+      // 2. Send audio to Whisper API
       const formData = new FormData()
       formData.append('audio', audioBlob, 'recording.webm')
 
@@ -150,7 +183,7 @@ export default function VoiceRecorder() {
 
       const { text } = await whisperResponse.json()
 
-      // Add user message
+      // Add user message to UI
       const userMessage: Message = {
         role: 'user',
         content: text,
@@ -158,7 +191,14 @@ export default function VoiceRecorder() {
       }
       setMessages(prev => [...prev, userMessage])
 
-      // Send to ChatGPT for classification and response
+      // 3. Lagre transkripsjon
+      const transcriptionRecord = await saveTranscription(
+        user.id,
+        audioRecordId,
+        text
+      )
+
+      // 4. Send to ChatGPT for classification and response
       const chatResponse = await fetch('/api/chat', {
         method: 'POST',
         headers: {
@@ -174,9 +214,9 @@ export default function VoiceRecorder() {
         throw new Error('Chat API feilet')
       }
 
-      const { response, audioUrl, intent, spotifyQuery } = await chatResponse.json()
+      const { response, audioUrl, intent, spotifyQuery, entities } = await chatResponse.json()
 
-      console.log('🤖 ChatGPT Response:', { intent, response, spotifyQuery })
+      console.log('🤖 ChatGPT Response:', { intent, response, spotifyQuery, entities })
 
       let finalResponse = response
 
@@ -189,13 +229,32 @@ export default function VoiceRecorder() {
         finalResponse = 'Jeg forstod ikke hvilken sang du vil spille. Prøv igjen.'
       }
 
-      // Add assistant message
+      // Add assistant message to UI
       const assistantMessage: Message = {
         role: 'assistant',
         content: finalResponse,
         timestamp: new Date()
       }
       setMessages(prev => [...prev, assistantMessage])
+
+      // 5. Lagre intent classification
+      const intentRecord = await saveIntentClassification(
+        user.id,
+        transcriptionRecord.id,
+        intent || 'OTHER',
+        null,
+        entities || {},
+        response
+      )
+
+      // 6. Lagre full conversation
+      await addConversation(
+        text,
+        finalResponse,
+        audioUrl,
+        transcriptionRecord.id,
+        intentRecord.id
+      )
 
       // Play TTS audio (use original response for TTS)
       if (audioUrl) {
@@ -213,6 +272,7 @@ export default function VoiceRecorder() {
 
   const processText = async (text: string) => {
     if (!text.trim()) return
+    if (!user) return
 
     setIsProcessing(true)
 
@@ -227,7 +287,14 @@ export default function VoiceRecorder() {
       }
       setMessages(prev => [...prev, userMessage])
 
-      // Send to ChatGPT for classification and response
+      // 1. Lagre transkripsjon (uten lydopptak)
+      const transcriptionRecord = await saveTranscription(
+        user.id,
+        null,
+        text
+      )
+
+      // 2. Send to ChatGPT for classification and response
       const chatResponse = await fetch('/api/chat', {
         method: 'POST',
         headers: {
@@ -243,9 +310,9 @@ export default function VoiceRecorder() {
         throw new Error('Chat API feilet')
       }
 
-      const { response, audioUrl, intent, spotifyQuery } = await chatResponse.json()
+      const { response, audioUrl, intent, spotifyQuery, entities } = await chatResponse.json()
 
-      console.log('🤖 ChatGPT Response:', { intent, response, spotifyQuery })
+      console.log('🤖 ChatGPT Response:', { intent, response, spotifyQuery, entities })
 
       let finalResponse = response
 
@@ -265,6 +332,25 @@ export default function VoiceRecorder() {
         timestamp: new Date()
       }
       setMessages(prev => [...prev, assistantMessage])
+
+      // 3. Lagre intent classification
+      const intentRecord = await saveIntentClassification(
+        user.id,
+        transcriptionRecord.id,
+        intent || 'OTHER',
+        null,
+        entities || {},
+        response
+      )
+
+      // 4. Lagre full conversation
+      await addConversation(
+        text,
+        finalResponse,
+        audioUrl,
+        transcriptionRecord.id,
+        intentRecord.id
+      )
 
       // Play TTS audio (use original response for TTS)
       if (audioUrl) {
@@ -378,7 +464,7 @@ export default function VoiceRecorder() {
       </div>
 
       <div style={styles.messagesContainer}>
-        <h2 style={styles.messagesTitle}>Samtalehistorikk</h2>
+        <h2 style={styles.messagesTitle}>Samtalehistorikk (denne økt)</h2>
         <div style={styles.messagesList}>
           {messages.length === 0 ? (
             <p style={styles.emptyState}>
@@ -405,6 +491,30 @@ export default function VoiceRecorder() {
           )}
         </div>
       </div>
+
+      {/* Samtalehistorikk fra Supabase */}
+      {conversations.length > 0 && (
+        <div style={styles.conversationsContainer}>
+          <h2 style={styles.conversationsTitle}>📚 Lagret samtalehistorikk</h2>
+          <div style={styles.conversationsList}>
+            {conversations.map((conv) => (
+              <div key={conv.id} style={styles.conversationCard}>
+                <div style={styles.conversationUser}>
+                  <strong style={styles.conversationLabel}>Du:</strong>
+                  <p style={styles.conversationText}>{conv.user_input}</p>
+                </div>
+                <div style={styles.conversationAssistant}>
+                  <strong style={styles.conversationLabel}>Assistent:</strong>
+                  <p style={styles.conversationText}>{conv.assistant_response}</p>
+                </div>
+                <div style={styles.conversationTime}>
+                  {new Date(conv.created_at).toLocaleString('no-NO')}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -599,6 +709,48 @@ const styles: { [key: string]: React.CSSProperties } = {
   messageTime: {
     fontSize: '0.75rem',
     opacity: 0.6,
+    textAlign: 'right',
+  },
+  conversationsContainer: {
+    marginTop: '60px',
+    paddingTop: '40px',
+    borderTop: '2px solid #3a3a4e',
+  },
+  conversationsTitle: {
+    fontSize: '1.5rem',
+    marginBottom: '20px',
+    color: '#4a9eff',
+  },
+  conversationsList: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '20px',
+  },
+  conversationCard: {
+    background: '#1a1a2e',
+    border: '1px solid #3a3a4e',
+    borderRadius: '12px',
+    padding: '20px',
+    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)',
+  },
+  conversationUser: {
+    marginBottom: '15px',
+  },
+  conversationAssistant: {
+    marginBottom: '10px',
+  },
+  conversationLabel: {
+    color: '#667eea',
+    fontSize: '0.9rem',
+  },
+  conversationText: {
+    color: '#e0e0e0',
+    lineHeight: '1.5',
+    marginTop: '5px',
+  },
+  conversationTime: {
+    fontSize: '0.75rem',
+    color: '#888',
     textAlign: 'right',
   },
 }

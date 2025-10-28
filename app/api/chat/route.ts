@@ -21,7 +21,8 @@ Svar i følgende JSON-format:
 {
   "intent": "INTENT_TYPE",
   "response": "ditt svar her",
-  "query": "søkeord for Spotify (kun for SPOTIFY intent)"
+  "query": "søkeord for Spotify (kun for SPOTIFY intent)",
+  "entities": { "relevante nøkkelentiteter": "ekstrahert verdi" }
 }
 
 For SPOTIFY intent:
@@ -36,13 +37,13 @@ For SPOTIFY intent:
   * "spill comfortably numb av pink floyd" -> query: "comfortably numb pink floyd"
 
 Eksempler på fullstendige svar:
-- SPOTIFY: {"intent": "SPOTIFY", "response": "Søker etter låten på Spotify", "query": "song artist"}
-- NAVIGATION: {"intent": "NAVIGATION", "response": "Du er i [sted]. Gå [retning]", "query": null}
-- PURCHASE: {"intent": "PURCHASE", "response": "Nå betaler jeg [beløp] kr på [butikk]", "query": null}
-- DOOR: {"intent": "DOOR", "response": "Nå åpner jeg døren i [adresse]", "query": null}
-- VOICE_MESSAGE: {"intent": "VOICE_MESSAGE", "response": "Sender talemelding til [person]", "query": null}
-- VOLUME: {"intent": "VOLUME", "response": "Volumet er nå satt til [prosent]%", "query": null}
-- QUESTION: {"intent": "QUESTION", "response": "Faktabasert svar her", "query": null}
+- SPOTIFY: {"intent": "SPOTIFY", "response": "Søker etter låten på Spotify", "query": "song artist", "entities": {"song": "song name", "artist": "artist name"}}
+- NAVIGATION: {"intent": "NAVIGATION", "response": "Du er i [sted]. Gå [retning]", "query": null, "entities": {"destination": "place"}}
+- PURCHASE: {"intent": "PURCHASE", "response": "Nå betaler jeg [beløp] kr på [butikk]", "query": null, "entities": {"amount": 100, "store": "store name"}}
+- DOOR: {"intent": "DOOR", "response": "Nå åpner jeg døren i [adresse]", "query": null, "entities": {"address": "address"}}
+- VOICE_MESSAGE: {"intent": "VOICE_MESSAGE", "response": "Sender talemelding til [person]", "query": null, "entities": {"recipient": "person name"}}
+- VOLUME: {"intent": "VOLUME", "response": "Volumet er nå satt til [prosent]%", "query": null, "entities": {"volume": 50}}
+- QUESTION: {"intent": "QUESTION", "response": "Faktabasert svar her", "query": null, "entities": {}}
 
 Svar ALLTID med gyldig JSON.`
 
@@ -96,6 +97,7 @@ export async function POST(request: NextRequest) {
         if (!parsedResponse.intent) parsedResponse.intent = 'OTHER'
         if (!parsedResponse.response) parsedResponse.response = 'Beklager, jeg forstod ikke det.'
         if (!parsedResponse.query) parsedResponse.query = null
+        if (!parsedResponse.entities) parsedResponse.entities = {}
 
       } catch (e) {
         console.error('❌ Failed to parse JSON:', e)
@@ -151,6 +153,7 @@ export async function POST(request: NextRequest) {
         audioUrl: audioUrl,
         intent: parsedResponse.intent,
         spotifyQuery: parsedResponse.query,
+        entities: parsedResponse.entities || {},
       })
     } catch (ttsError: any) {
       console.error('❌ TTS error:', ttsError.message)
@@ -160,6 +163,7 @@ export async function POST(request: NextRequest) {
         audioUrl: null,
         intent: parsedResponse.intent,
         spotifyQuery: parsedResponse.query,
+        entities: parsedResponse.entities || {},
       })
     }
   } catch (error: any) {

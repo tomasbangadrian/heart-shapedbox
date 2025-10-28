@@ -1,8 +1,9 @@
 import './globals.css'
 import type { Metadata } from 'next'
+import { AuthProvider } from '@/lib/context/AuthContext'
 
 export const metadata: Metadata = {
-  title: 'Voice Assistant',
+  title: 'Heart-Shaped Box - Stemmeassistent',
   description: 'AI-drevet stemmeassistent med ChatGPT og Whisper',
   icons: {
     icon: '/favicon.ico',
@@ -16,7 +17,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="no">
-      <body>{children}</body>
+      <body>
+        <AuthProvider>
+          {children}
+        </AuthProvider>
+      </body>
     </html>
   )
 }
