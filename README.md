@@ -1,136 +1,136 @@
-# 🎤 Stemmeassistent - Voice Assistant
+# 🎤 Voice Assistant
 
-En intelligent stemmeassistent bygget med Next.js, OpenAI Whisper, og ChatGPT. Appen lar deg gi stemmekommandoer som blir transkribert, klassifisert og besvart med både tekst og tale.
+An intelligent voice assistant built with Next.js, OpenAI Whisper, and ChatGPT. The app lets you give voice commands that are transcribed, classified, and answered with both text and speech.
 
-## ✨ Funksjoner
+## ✨ Features
 
-- 🎙️ **Stemmeopptag**: Hold inne knappen for å snakke
-- 🗣️ **Speech-to-Text**: Bruker OpenAI Whisper for å konvertere tale til tekst
-- 🤖 **Intent Classification**: ChatGPT klassifiserer kommandoen din (Spotify, navigasjon, kjøp, døråpning, volumkontroll, spørsmål, etc.)
-- 🔊 **Text-to-Speech**: Får lydsvar tilbake med OpenAI TTS
-- 🎵 **Spotify Integration**: Ekte Spotify Web Playback - spill musikk direkte i nettleseren!
-- 💬 **Samtalehistorikk**: Se alle dine tidligere kommandoer og svar
+- 🎙️ **Voice Recording**: Press and hold the button to speak
+- 🗣️ **Speech-to-Text**: Uses OpenAI Whisper to convert speech to text
+- 🤖 **Intent Classification**: ChatGPT classifies your command (Spotify, navigation, purchase, door opening, volume control, questions, etc.)
+- 🔊 **Text-to-Speech**: Get audio responses back with OpenAI TTS
+- 🎵 **Spotify Integration**: Real Spotify Web Playback - play music directly in your browser!
+- 💬 **Conversation History**: See all your previous commands and responses
 
-## 🎯 Støttede Kommandoer
+## 🎯 Supported Commands
 
-Assistenten kan håndtere:
+The assistant can handle:
 
-- **Spotify**: "Spill [sang/artist] på Spotify"
-- **Navigasjon**: "Navigasjon til [sted]", "Veibeskrivelse til [adresse]"
-- **Kjøp**: "Betal [beløp] på [butikk]"
-- **Døråpning**: "Åpne dør i [adresse]"
-- **Talemelding**: "Send talemelding til [person]"
-- **Volumkontroll**: "Still volum på 50%", "Still det på 80%", "Sett volumet til 10%"
-- **Spørsmål**: "Hva er hovedstaden i Norge?", "Hvor mange innbyggere har Oslo?", "Hvem er statsminister?"
-- Og mer!
+- **Spotify**: "Play [song/artist] on Spotify"
+- **Navigation**: "Navigate to [place]", "Directions to [address]"
+- **Purchase**: "Pay [amount] at [store]"
+- **Door Opening**: "Open door at [address]"
+- **Voice Message**: "Send voice message to [person]"
+- **Volume Control**: "Set volume to 50%", "Set it to 80%", "Set volume to 10%"
+- **Questions**: "What is the capital of France?", "How many people live in Paris?", "Who is the president?"
+- And more!
 
-## 🚀 Kom i gang
+## 🚀 Getting Started
 
-### Forutsetninger
+### Prerequisites
 
-- Node.js 18+ installert
-- En OpenAI API-nøkkel ([få den her](https://platform.openai.com/api-keys))
+- Node.js 18+ installed
+- An OpenAI API key ([get it here](https://platform.openai.com/api-keys))
 
-### Installasjon
+### Installation
 
-1. **Klon prosjektet** (hvis ikke allerede gjort):
+1. **Clone the project** (if not already done):
    ```bash
    git clone <repository-url>
    cd heart-shapedbox
    ```
 
-2. **Installer avhengigheter**:
+2. **Install dependencies**:
    ```bash
    npm install
    ```
 
-3. **Sett opp miljøvariabler**:
+3. **Set up environment variables**:
    ```bash
    cp .env.example .env.local
    ```
 
-   Rediger `.env.local` og legg inn dine API-nøkler:
+   Edit `.env.local` and add your API keys:
    ```
-   OPENAI_API_KEY=sk-din-api-nøkkel-her
-   SPOTIFY_CLIENT_ID=din-spotify-client-id
-   SPOTIFY_CLIENT_SECRET=din-spotify-client-secret
+   OPENAI_API_KEY=sk-your-api-key-here
+   SPOTIFY_CLIENT_ID=your-spotify-client-id
+   SPOTIFY_CLIENT_SECRET=your-spotify-client-secret
    SPOTIFY_REDIRECT_URI=http://localhost:3000/api/spotify/callback
    NEXT_PUBLIC_BASE_URL=http://localhost:3000
    ```
 
-4. **Start utviklingsserveren**:
+4. **Start the development server**:
    ```bash
    npm run dev
    ```
 
-5. **Åpne appen**:
-   Gå til [http://localhost:3000](http://localhost:3000) i nettleseren din
+5. **Open the app**:
+   Go to [http://localhost:3000](http://localhost:3000) in your browser
 
 ## 🎵 Spotify Setup
 
-For å få Spotify-integrasjon til å fungere, må du sette opp en Spotify Developer App:
+To get Spotify integration working, you need to set up a Spotify Developer App:
 
-### Steg 1: Opprett Spotify App
+### Step 1: Create Spotify App
 
-1. Gå til [Spotify Developer Dashboard](https://developer.spotify.com/dashboard)
-2. Logg inn med din Spotify-konto
-3. Klikk "Create app"
-4. Fyll inn:
-   - **App name**: `Voice Assistant` (eller hva du vil)
-   - **App description**: En beskrivelse
-   - **Website**: Din Vercel URL (f.eks. `https://heart-shapedbox.vercel.app`)
-   - **Redirect URIs**: Legg til:
-     - For produksjon: `https://your-app.vercel.app/api/spotify/callback`
-     - For lokal testing: `http://localhost:3000/api/spotify/callback`
-   - **APIs used**: Velg begge:
+1. Go to [Spotify Developer Dashboard](https://developer.spotify.com/dashboard)
+2. Log in with your Spotify account
+3. Click "Create app"
+4. Fill in:
+   - **App name**: `Voice Assistant` (or whatever you want)
+   - **App description**: A description
+   - **Website**: Your Vercel URL (e.g. `https://heart-shapedbox.vercel.app`)
+   - **Redirect URIs**: Add:
+     - For production: `https://your-app.vercel.app/api/spotify/callback`
+     - For local testing: `http://localhost:3000/api/spotify/callback`
+   - **APIs used**: Select both:
      - ✅ Web API
      - ✅ Web Playback SDK
-5. Aksepter Spotify's Terms of Service
-6. Klikk "Save"
+5. Accept Spotify's Terms of Service
+6. Click "Save"
 
-### Steg 2: Få API Credentials
+### Step 2: Get API Credentials
 
-1. Klikk på appen du nettopp opprettet
-2. Gå til "Settings"
-3. Kopier **Client ID** og **Client Secret**
-4. Legg disse inn i `.env.local` filen din
+1. Click on the app you just created
+2. Go to "Settings"
+3. Copy **Client ID** and **Client Secret**
+4. Add these to your `.env.local` file
 
-### Steg 3: Bruk Spotify
+### Step 3: Use Spotify
 
-1. Start appen
-2. Klikk på "🎵 Logg inn med Spotify" knappen
-3. Godkjenn tilgangene Spotify ber om
-4. Nå kan du si ting som:
-   - "Spill Bohemian Rhapsody"
-   - "Spill Aurora"
-   - "Spill The Weeknd"
+1. Start the app
+2. Click on the "🎵 Log in with Spotify" button
+3. Approve the permissions Spotify requests
+4. Now you can say things like:
+   - "Play Bohemian Rhapsody"
+   - "Play Aurora"
+   - "Play The Weeknd"
 
-**Viktig**: Spotify Web Playback SDK krever at du har **Spotify Premium**!
+**Important**: Spotify Web Playback SDK requires you to have **Spotify Premium**!
 
-## 📦 Deploy til Vercel
+## 📦 Deploy to Vercel
 
-### Metode 1: Via Vercel Dashboard (Anbefalt)
+### Method 1: Via Vercel Dashboard (Recommended)
 
-1. Gå til [vercel.com](https://vercel.com)
-2. Klikk "Add New..." → "Project"
-3. Importer ditt GitHub/GitLab/Bitbucket repository
-4. Vercel vil automatisk detektere Next.js-prosjektet
-5. Legg til miljøvariabler:
-   - `OPENAI_API_KEY`: Din OpenAI API-nøkkel
-   - `SPOTIFY_CLIENT_ID`: Din Spotify Client ID
-   - `SPOTIFY_CLIENT_SECRET`: Din Spotify Client Secret
+1. Go to [vercel.com](https://vercel.com)
+2. Click "Add New..." → "Project"
+3. Import your GitHub/GitLab/Bitbucket repository
+4. Vercel will automatically detect the Next.js project
+5. Add environment variables:
+   - `OPENAI_API_KEY`: Your OpenAI API key
+   - `SPOTIFY_CLIENT_ID`: Your Spotify Client ID
+   - `SPOTIFY_CLIENT_SECRET`: Your Spotify Client Secret
    - `SPOTIFY_REDIRECT_URI`: `https://your-app.vercel.app/api/spotify/callback`
    - `NEXT_PUBLIC_BASE_URL`: `https://your-app.vercel.app`
-6. Klikk "Deploy"
+6. Click "Deploy"
 
-### Metode 2: Via Vercel CLI
+### Method 2: Via Vercel CLI
 
-1. **Installer Vercel CLI**:
+1. **Install Vercel CLI**:
    ```bash
    npm i -g vercel
    ```
 
-2. **Logg inn**:
+2. **Log in**:
    ```bash
    vercel login
    ```
@@ -140,24 +140,24 @@ For å få Spotify-integrasjon til å fungere, må du sette opp en Spotify Devel
    vercel
    ```
 
-4. **Legg til miljøvariabel**:
+4. **Add environment variable**:
    ```bash
    vercel env add OPENAI_API_KEY
    ```
-   Lim inn din OpenAI API-nøkkel når du blir spurt.
+   Paste your OpenAI API key when prompted.
 
-5. **Deploy til produksjon**:
+5. **Deploy to production**:
    ```bash
    vercel --prod
    ```
 
-### Etter Deployment
+### After Deployment
 
-- Appen din vil være tilgjengelig på en URL som `https://your-app.vercel.app`
-- Gi nettleseren tilgang til mikrofonen når du blir spurt
-- Start å snakke!
+- Your app will be available at a URL like `https://your-app.vercel.app`
+- Give the browser access to the microphone when prompted
+- Start speaking!
 
-## 🛠️ Prosjektstruktur
+## 🛠️ Project Structure
 
 ```
 heart-shapedbox/
@@ -168,82 +168,82 @@ heart-shapedbox/
 │   │   └── chat/           # ChatGPT API endpoint (classification + TTS)
 │   │       └── route.ts
 │   ├── layout.tsx          # Root layout
-│   ├── page.tsx            # Hovedside
-│   └── globals.css         # Globale stiler
+│   ├── page.tsx            # Main page
+│   └── globals.css         # Global styles
 ├── components/
-│   └── VoiceRecorder.tsx   # Hovedkomponent for stemmeopptak
-├── public/                 # Statiske filer
-├── .env.example           # Eksempel på miljøvariabler
-├── next.config.js         # Next.js konfigurasjon
-├── package.json           # Avhengigheter
-└── tsconfig.json          # TypeScript konfigurasjon
+│   └── VoiceRecorder.tsx   # Main component for voice recording
+├── public/                 # Static files
+├── .env.example           # Example environment variables
+├── next.config.js         # Next.js configuration
+├── package.json           # Dependencies
+└── tsconfig.json          # TypeScript configuration
 ```
 
-## 🔧 Tilpasning
+## 🔧 Customization
 
-### Endre Systemprompten
+### Change the System Prompt
 
-For å endre hvordan assistenten oppfører seg, rediger `SYSTEM_PROMPT` i `app/api/chat/route.ts`.
+To change how the assistant behaves, edit `SYSTEM_PROMPT` in `app/api/chat/route.ts`.
 
-### Legge til nye Intent-typer
+### Add New Intent Types
 
-1. Oppdater `SYSTEM_PROMPT` i `app/api/chat/route.ts`
-2. Legg til eksempler for hvordan assistenten skal svare
+1. Update `SYSTEM_PROMPT` in `app/api/chat/route.ts`
+2. Add examples for how the assistant should respond
 
-### Endre TTS-stemme
+### Change TTS Voice
 
-I `app/api/chat/route.ts`, endre `voice` parameteren:
-- Tilgjengelige stemmer: `alloy`, `echo`, `fable`, `onyx`, `nova`, `shimmer`
+In `app/api/chat/route.ts`, change the `voice` parameter:
+- Available voices: `alloy`, `echo`, `fable`, `onyx`, `nova`, `shimmer`
 
-## 📝 API Endepunkter
+## 📝 API Endpoints
 
 ### POST /api/whisper
-Konverterer lydfil til tekst.
+Converts audio file to text.
 
-**Request**: FormData med `audio` fil
+**Request**: FormData with `audio` file
 **Response**: `{ text: string }`
 
 ### POST /api/chat
-Klassifiserer tekst og returnerer svar med lyd.
+Classifies text and returns response with audio.
 
 **Request**: `{ text: string }`
 **Response**: `{ response: string, audioUrl: string }`
 
-## 🔐 Sikkerhet
+## 🔐 Security
 
-- **VIKTIG**: Ikke commit `.env.local` til git
-- API-nøklene dine er kun tilgjengelige på serversiden
-- Alle API-kall går gjennom Next.js API routes (ikke direkte fra klienten)
+- **IMPORTANT**: Don't commit `.env.local` to git
+- Your API keys are only available on the server side
+- All API calls go through Next.js API routes (not directly from the client)
 
-## 🐛 Feilsøking
+## 🐛 Troubleshooting
 
-### "Kunne ikke få tilgang til mikrofonen"
-- Sjekk at nettleseren har tillatelse til å bruke mikrofonen
-- Forsikre deg om at du bruker HTTPS (eller localhost)
+### "Could not access microphone"
+- Check that the browser has permission to use the microphone
+- Make sure you're using HTTPS (or localhost)
 
-### "Whisper API feilet"
-- Sjekk at `OPENAI_API_KEY` er riktig satt
-- Verifiser at API-nøkkelen har tilgang til Whisper API
+### "Whisper API failed"
+- Check that `OPENAI_API_KEY` is correctly set
+- Verify that the API key has access to Whisper API
 
-### Build feiler
-- Kjør `npm install` på nytt
-- Slett `node_modules` og `.next` mapper og installer på nytt
+### Build fails
+- Run `npm install` again
+- Delete `node_modules` and `.next` folders and reinstall
 
-## 📚 Teknologier
+## 📚 Technologies
 
 - [Next.js 14](https://nextjs.org/) - React framework
 - [OpenAI API](https://platform.openai.com/) - Whisper, GPT-4, TTS
 - [TypeScript](https://www.typescriptlang.org/) - Type safety
 - [Vercel](https://vercel.com/) - Deployment platform
 
-## 📄 Lisens
+## 📄 License
 
-Dette prosjektet er åpen kildekode og tilgjengelig for bruk.
+This project is open source and available for use.
 
-## 🤝 Bidra
+## 🤝 Contributing
 
-Føl deg fri til å åpne issues eller pull requests for forbedringer!
+Feel free to open issues or pull requests for improvements!
 
 ---
 
-**Laget med ❤️ og AI**
+**Made with ❤️ and AI**

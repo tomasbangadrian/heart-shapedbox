@@ -5,46 +5,46 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 })
 
-const SYSTEM_PROMPT = `Du er en intelligent stemmeassistent som klassifiserer brukerkommandoer og gir passende svar.
+const SYSTEM_PROMPT = `You are an intelligent voice assistant that classifies user commands and provides appropriate responses.
 
-Klassifiser brukerkommandoen som én av følgende typer:
-1. SPOTIFY: Spill musikk (eksempel: "spill [sang]", "spill [artist]", "spill [sang] med/av [artist]", "spill [sang] på spotify")
-2. NAVIGATION: Få veibeskrivelse (eksempel: "navigasjon til [sted]", "veibeskrivelse til [adresse]")
-3. VOICE_MESSAGE: Send talemelding (eksempel: "send talemelding til [person]")
-4. PURCHASE: Kjøp noe i butikk (eksempel: "betal [beløp] på [butikk]")
-5. DOOR: Åpne dør (eksempel: "åpne dør i [adresse]")
-6. VOLUME: Juster volumet på AirPods (eksempel: "still volum på 50%", "still det på 80%", "volum til 10%", "sett volumet til 100%")
-7. QUESTION: Spørsmål om fakta eller kunnskap (eksempel: "hva er hovedstaden i Norge?", "hvor mange innbyggere har Oslo?", "hvem er statsminister?")
-8. OTHER: Andre forespørsler
+Classify the user command as one of the following types:
+1. SPOTIFY: Play music (example: "play [song]", "play [artist]", "play [song] by [artist]", "play [song] on spotify")
+2. NAVIGATION: Get directions (example: "navigate to [place]", "directions to [address]")
+3. VOICE_MESSAGE: Send voice message (example: "send voice message to [person]")
+4. PURCHASE: Purchase something at a store (example: "pay [amount] at [store]")
+5. DOOR: Open door (example: "open door at [address]")
+6. VOLUME: Adjust AirPods volume (example: "set volume to 50%", "set it to 80%", "volume to 10%", "set volume to 100%")
+7. QUESTION: Questions about facts or knowledge (example: "what is the capital of France?", "how many people live in Paris?", "who is the president?")
+8. OTHER: Other requests
 
-Svar i følgende JSON-format:
+Respond in the following JSON format:
 {
   "intent": "INTENT_TYPE",
-  "response": "ditt svar her",
-  "query": "søkeord for Spotify (kun for SPOTIFY intent)"
+  "response": "your response here",
+  "query": "search terms for Spotify (only for SPOTIFY intent)"
 }
 
 For SPOTIFY intent:
-- Ekstraher ALLTID sangtittel og artist fra kommandoen
-- Fjern ord som "spill", "på spotify", "med", "av", etc.
-- Inkluder både sang og artist i query
-- Eksempler:
-  * "spill bohemian rhapsody" -> query: "bohemian rhapsody"
-  * "spill great day for freedom med pink floyd" -> query: "great day for freedom pink floyd"
-  * "spill great day for freedom med pink floyd på spotify" -> query: "great day for freedom pink floyd"
-  * "spill the weeknd" -> query: "the weeknd"
-  * "spill comfortably numb av pink floyd" -> query: "comfortably numb pink floyd"
+- ALWAYS extract song title and artist from the command
+- Remove words like "play", "on spotify", "with", "by", etc.
+- Include both song and artist in query
+- Examples:
+  * "play bohemian rhapsody" -> query: "bohemian rhapsody"
+  * "play great day for freedom by pink floyd" -> query: "great day for freedom pink floyd"
+  * "play great day for freedom by pink floyd on spotify" -> query: "great day for freedom pink floyd"
+  * "play the weeknd" -> query: "the weeknd"
+  * "play comfortably numb by pink floyd" -> query: "comfortably numb pink floyd"
 
-Eksempler på fullstendige svar:
-- SPOTIFY: {"intent": "SPOTIFY", "response": "Søker etter låten på Spotify", "query": "song artist"}
-- NAVIGATION: {"intent": "NAVIGATION", "response": "Du er i [sted]. Gå [retning]", "query": null}
-- PURCHASE: {"intent": "PURCHASE", "response": "Nå betaler jeg [beløp] kr på [butikk]", "query": null}
-- DOOR: {"intent": "DOOR", "response": "Nå åpner jeg døren i [adresse]", "query": null}
-- VOICE_MESSAGE: {"intent": "VOICE_MESSAGE", "response": "Sender talemelding til [person]", "query": null}
-- VOLUME: {"intent": "VOLUME", "response": "Volumet er nå satt til [prosent]%", "query": null}
-- QUESTION: {"intent": "QUESTION", "response": "Faktabasert svar her", "query": null}
+Examples of complete responses:
+- SPOTIFY: {"intent": "SPOTIFY", "response": "Searching for the song on Spotify", "query": "song artist"}
+- NAVIGATION: {"intent": "NAVIGATION", "response": "You are at [place]. Go [direction]", "query": null}
+- PURCHASE: {"intent": "PURCHASE", "response": "Now paying [amount] at [store]", "query": null}
+- DOOR: {"intent": "DOOR", "response": "Now opening the door at [address]", "query": null}
+- VOICE_MESSAGE: {"intent": "VOICE_MESSAGE", "response": "Sending voice message to [person]", "query": null}
+- VOLUME: {"intent": "VOLUME", "response": "Volume is now set to [percent]%", "query": null}
+- QUESTION: {"intent": "QUESTION", "response": "Fact-based answer here", "query": null}
 
-Svar ALLTID med gyldig JSON.`
+ALWAYS respond with valid JSON.`
 
 export async function POST(request: NextRequest) {
   try {
@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
 
     if (!text) {
       return NextResponse.json(
-        { error: 'Ingen tekst mottatt' },
+        { error: 'No text received' },
         { status: 400 }
       )
     }
@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
     if (!process.env.OPENAI_API_KEY) {
       console.error('❌ OPENAI_API_KEY is not set!')
       return NextResponse.json(
-        { error: 'OpenAI API key er ikke konfigurert' },
+        { error: 'OpenAI API key is not configured' },
         { status: 500 }
       )
     }
@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
         response_format: { type: 'json_object' }, // This model supports JSON mode
       })
 
-      const responseText = completion.choices[0].message.content || '{"intent": "OTHER", "response": "Beklager, jeg forstod ikke det.", "query": null}'
+      const responseText = completion.choices[0].message.content || '{"intent": "OTHER", "response": "Sorry, I didn\'t understand that.", "query": null}'
 
       console.log('🤖 Raw ChatGPT response:', responseText)
 
@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
 
         // Ensure all required fields exist
         if (!parsedResponse.intent) parsedResponse.intent = 'OTHER'
-        if (!parsedResponse.response) parsedResponse.response = 'Beklager, jeg forstod ikke det.'
+        if (!parsedResponse.response) parsedResponse.response = 'Sorry, I didn\'t understand that.'
         if (!parsedResponse.query) parsedResponse.query = null
 
       } catch (e) {
@@ -104,14 +104,14 @@ export async function POST(request: NextRequest) {
         // Try to extract useful info from non-JSON response
         parsedResponse = {
           intent: 'OTHER',
-          response: responseText || 'Beklager, jeg forstod ikke det.',
+          response: responseText || 'Sorry, I didn\'t understand that.',
           query: null
         }
       }
 
       // Check if Spotify login is needed
       if (parsedResponse.intent === 'SPOTIFY' && !hasSpotify) {
-        parsedResponse.response = 'Du må logge inn på Spotify først for å spille musikk'
+        parsedResponse.response = 'You must log in to Spotify first to play music'
       }
     } catch (chatError: any) {
       console.error('❌ ChatGPT API error:', chatError)
@@ -125,7 +125,7 @@ export async function POST(request: NextRequest) {
       // Fallback response if ChatGPT fails
       parsedResponse = {
         intent: 'OTHER',
-        response: `Feil med ChatGPT: ${chatError.message || 'Ukjent feil'}. Sjekk konsollen for detaljer.`,
+        response: `Error with ChatGPT: ${chatError.message || 'Unknown error'}. Check console for details.`,
         query: null
       }
     }
@@ -165,7 +165,7 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error('❌ Chat API error:', error.message, error.stack)
     return NextResponse.json(
-      { error: 'Feil ved behandling av forespørsel: ' + error.message },
+      { error: 'Error processing request: ' + error.message },
       { status: 500 }
     )
   }
