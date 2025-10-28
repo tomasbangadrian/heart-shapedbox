@@ -107,18 +107,24 @@ async function normalizeSpotifyQuery(query: string): Promise<{ track: string; ar
 Important corrections to know:
 - "pete floyd" → "Pink Floyd"
 - "led zeplin" → "Led Zeppelin"
-- "through the eyes of the ruby" → "Through the Eyes of Ruby" (Smashing Pumpkins song)
-- "thru" → "Through"
+- "through the eyes of ruby" → "Eye" (Smashing Pumpkins - singular "Eye", not "Eyes"!)
+- "thru the eyes of ruby" → "Eye" (Smashing Pumpkins - singular "Eye", not "Eyes"!)
 - "the weeknd" is CORRECT (not "the weekend")
+
+CRITICAL: The Smashing Pumpkins song is titled just "Eye" (singular), not "Eyes" (plural).
+"Thru/Through the Eyes/Eye of Ruby" → correct title is simply "Eye"
 
 Query: "${query}"
 
 Return ONLY a JSON object in this exact format, nothing else:
 {"track": "Song Title", "artist": "Artist Name"}
 
-Example:
+Examples:
 Input: "thru the eyes of the ruby smashing pumpkins"
-Output: {"track": "Through the Eyes of Ruby", "artist": "The Smashing Pumpkins"}`
+Output: {"track": "Eye", "artist": "The Smashing Pumpkins"}
+
+Input: "through the eyes of ruby smashing pumpkins"
+Output: {"track": "Eye", "artist": "The Smashing Pumpkins"}`
 
     const completion = await openai.chat.completions.create({
       model: 'gpt-4-turbo-preview',
