@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import OpenAI from 'openai'
+import Groq from 'groq-sdk'
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
+const groq = new Groq({
+  apiKey: process.env.GROQ_API_KEY,
 })
 
 export async function POST(request: NextRequest) {
@@ -17,10 +17,11 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Convert File to format OpenAI expects
-    const transcription = await openai.audio.transcriptions.create({
+    // Convert File to format Groq expects
+    const transcription = await groq.audio.transcriptions.create({
       file: audioFile,
-      model: 'whisper-1',
+      model: 'whisper-large-v3',
+      temperature: 0,
       language: 'en', // English
     })
 
