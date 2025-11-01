@@ -370,17 +370,18 @@ export async function POST(request: NextRequest) {
     try {
       console.log('🔊 Generating TTS audio...')
       console.log('📝 TTS input:', parsedResponse.response)
-      // @ts-ignore - Groq SDK type issue with audio.speech
-      const ttsResponse = await (groq as any).audio.speech.create({
-        model: 'playai-tts',
-        voice: 'Celeste-PlayAI', // Valid Groq TTS voice (female)
-        response_format: 'wav',
+
+      // @ts-ignore - Groq SDK types don't include audio.speech yet
+      const wav = await groq.audio.speech.create({
+        model: "playai-tts",
+        voice: "Aaliyah-PlayAI",
+        response_format: "wav",
         input: parsedResponse.response,
       })
       console.log('✅ TTS response received')
 
       // Convert audio to base64 data URL
-      const audioBuffer = Buffer.from(await ttsResponse.arrayBuffer())
+      const audioBuffer = Buffer.from(await wav.arrayBuffer())
       const audioBase64 = audioBuffer.toString('base64')
       const audioUrl = `data:audio/wav;base64,${audioBase64}`
 
