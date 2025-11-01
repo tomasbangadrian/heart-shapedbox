@@ -369,6 +369,7 @@ export async function POST(request: NextRequest) {
     // Generate TTS audio
     try {
       console.log('🔊 Generating TTS audio...')
+      // @ts-ignore - Groq SDK type issue with audio.speech
       const ttsResponse = await groq.audio.speech.create({
         model: 'playai-tts',
         voice: 'Aaliyah-PlayAI',
