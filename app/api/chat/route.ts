@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import OpenAI from 'openai'
+import Groq from 'groq-sdk'
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
+const groq = new Groq({
+  apiKey: process.env.GROQ_API_KEY,
 })
 
 const SYSTEM_PROMPT = `You are an intelligent voice assistant that classifies user commands and provides appropriate responses.
@@ -136,8 +136,8 @@ Output: {"track": "Thru the Eyes of Ruby", "artist": "The Smashing Pumpkins"}
 Input: "eye smashing pumpkins"
 Output: {"track": "Eye", "artist": "The Smashing Pumpkins"}`
 
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4-turbo-preview',
+    const completion = await groq.chat.completions.create({
+      model: 'openai/gpt-oss-120b',
       messages: [
         { role: 'system', content: 'You are a music expert. Return ONLY valid JSON with track and artist. No explanations.' },
         { role: 'user', content: normalizationPrompt }
@@ -215,8 +215,8 @@ Examples:
 
 Normalized address:`
 
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4-turbo-preview',
+    const completion = await groq.chat.completions.create({
+      model: 'openai/gpt-oss-120b',
       messages: [
         { role: 'system', content: 'You are a Norwegian address expert for Trondheim. Return ONLY the corrected address. No explanations or notes.' },
         { role: 'user', content: normalizationPrompt }
@@ -262,11 +262,11 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Check if OpenAI API key is configured
-    if (!process.env.OPENAI_API_KEY) {
-      console.error('❌ OPENAI_API_KEY is not set!')
+    // Check if Groq API key is configured
+    if (!process.env.GROQ_API_KEY) {
+      console.error('❌ GROQ_API_KEY is not set!')
       return NextResponse.json(
-        { error: 'OpenAI API key is not configured' },
+        { error: 'Groq API key is not configured' },
         { status: 500 }
       )
     }
@@ -275,10 +275,10 @@ export async function POST(request: NextRequest) {
     let originalQuery: string | null = null
 
     try {
-      // STEP 1: Classification - Get ChatGPT response
-      console.log('🤖 STEP 1: Calling ChatGPT for classification with model: gpt-4-turbo-preview')
-      const completion = await openai.chat.completions.create({
-        model: 'gpt-4-turbo-preview',
+      // STEP 1: Classification - Get Groq response
+      console.log('🤖 STEP 1: Calling Groq for classification with model: openai/gpt-oss-120b')
+      const completion = await groq.chat.completions.create({
+        model: 'openai/gpt-oss-120b',
         messages: [
           { role: 'system', content: SYSTEM_PROMPT },
           { role: 'user', content: text }
@@ -289,7 +289,7 @@ export async function POST(request: NextRequest) {
 
       const responseText = completion.choices[0].message.content || '{"intent": "OTHER", "response": "Sorry, I didn\'t understand that.", "query": null}'
 
-      console.log('🤖 Raw ChatGPT response:', responseText)
+      console.log('🤖 Raw Groq response:', responseText)
 
       // Parse JSON response
       try {
@@ -350,7 +350,7 @@ export async function POST(request: NextRequest) {
         parsedResponse.response = 'You must log in to Spotify first to play music'
       }
     } catch (chatError: any) {
-      console.error('❌ ChatGPT API error:', chatError)
+      console.error('❌ Groq API error:', chatError)
       console.error('Error details:', {
         message: chatError.message,
         status: chatError.status,
@@ -358,10 +358,10 @@ export async function POST(request: NextRequest) {
         code: chatError.code
       })
 
-      // Fallback response if ChatGPT fails
+      // Fallback response if Groq fails
       parsedResponse = {
         intent: 'OTHER',
-        response: `Error with ChatGPT: ${chatError.message || 'Unknown error'}. Check console for details.`,
+        response: `Error with Groq: ${chatError.message || 'Unknown error'}. Check console for details.`,
         query: null
       }
     }
@@ -369,16 +369,17 @@ export async function POST(request: NextRequest) {
     // Generate TTS audio
     try {
       console.log('🔊 Generating TTS audio...')
-      const ttsResponse = await openai.audio.speech.create({
-        model: 'tts-1',
-        voice: 'nova',
+      const ttsResponse = await groq.audio.speech.create({
+        model: 'playai-tts',
+        voice: 'Aaliyah-PlayAI',
+        response_format: 'wav',
         input: parsedResponse.response,
       })
 
       // Convert audio to base64 data URL
       const audioBuffer = Buffer.from(await ttsResponse.arrayBuffer())
       const audioBase64 = audioBuffer.toString('base64')
-      const audioUrl = `data:audio/mpeg;base64,${audioBase64}`
+      const audioUrl = `data:audio/wav;base64,${audioBase64}`
 
       console.log('✅ Response ready')
 

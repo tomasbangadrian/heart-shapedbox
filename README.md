@@ -1,13 +1,13 @@
 # 🎤 Voice Assistant
 
-An intelligent voice assistant built with Next.js, OpenAI Whisper, and ChatGPT. The app lets you give voice commands that are transcribed, classified, and answered with both text and speech.
+An intelligent voice assistant built with Next.js, Groq Whisper, and Groq LLM. The app lets you give voice commands that are transcribed, classified, and answered with both text and speech.
 
 ## ✨ Features
 
 - 🎙️ **Voice Recording**: Press and hold the button to speak
-- 🗣️ **Speech-to-Text**: Uses OpenAI Whisper to convert speech to text
-- 🤖 **Intent Classification**: ChatGPT classifies your command (Spotify, navigation, purchase, door opening, volume control, questions, etc.)
-- 🔊 **Text-to-Speech**: Get audio responses back with OpenAI TTS
+- 🗣️ **Speech-to-Text**: Uses Groq Whisper Large V3 for ultra-fast speech to text conversion
+- 🤖 **Intent Classification**: Groq's openai/gpt-oss-120b classifies your command (Spotify, navigation, purchase, door opening, volume control, questions, etc.)
+- 🔊 **Text-to-Speech**: Get audio responses back with Groq PlayAI TTS
 - 🎵 **Spotify Integration**: Real Spotify Web Playback - play music directly in your browser!
 - 💬 **Conversation History**: See all your previous commands and responses
 
@@ -29,7 +29,7 @@ The assistant can handle:
 ### Prerequisites
 
 - Node.js 18+ installed
-- An OpenAI API key ([get it here](https://platform.openai.com/api-keys))
+- A Groq API key ([get it here](https://console.groq.com/keys))
 
 ### Installation
 
@@ -51,7 +51,7 @@ The assistant can handle:
 
    Edit `.env.local` and add your API keys:
    ```
-   OPENAI_API_KEY=sk-your-api-key-here
+   GROQ_API_KEY=gsk-your-api-key-here
    SPOTIFY_CLIENT_ID=your-spotify-client-id
    SPOTIFY_CLIENT_SECRET=your-spotify-client-secret
    SPOTIFY_REDIRECT_URI=http://localhost:3000/api/spotify/callback
@@ -116,7 +116,7 @@ To get Spotify integration working, you need to set up a Spotify Developer App:
 3. Import your GitHub/GitLab/Bitbucket repository
 4. Vercel will automatically detect the Next.js project
 5. Add environment variables:
-   - `OPENAI_API_KEY`: Your OpenAI API key
+   - `GROQ_API_KEY`: Your Groq API key
    - `SPOTIFY_CLIENT_ID`: Your Spotify Client ID
    - `SPOTIFY_CLIENT_SECRET`: Your Spotify Client Secret
    - `SPOTIFY_REDIRECT_URI`: `https://your-app.vercel.app/api/spotify/callback`
@@ -142,9 +142,9 @@ To get Spotify integration working, you need to set up a Spotify Developer App:
 
 4. **Add environment variable**:
    ```bash
-   vercel env add OPENAI_API_KEY
+   vercel env add GROQ_API_KEY
    ```
-   Paste your OpenAI API key when prompted.
+   Paste your Groq API key when prompted.
 
 5. **Deploy to production**:
    ```bash
@@ -193,7 +193,8 @@ To change how the assistant behaves, edit `SYSTEM_PROMPT` in `app/api/chat/route
 ### Change TTS Voice
 
 In `app/api/chat/route.ts`, change the `voice` parameter:
-- Available voices: `alloy`, `echo`, `fable`, `onyx`, `nova`, `shimmer`
+- Available voices: Check [Groq PlayAI documentation](https://console.groq.com/docs/speech-text) for available voices
+- Default: `Aaliyah-PlayAI`
 
 ## 📝 API Endpoints
 
@@ -222,8 +223,8 @@ Classifies text and returns response with audio.
 - Make sure you're using HTTPS (or localhost)
 
 ### "Whisper API failed"
-- Check that `OPENAI_API_KEY` is correctly set
-- Verify that the API key has access to Whisper API
+- Check that `GROQ_API_KEY` is correctly set
+- Verify that the API key has access to Groq API
 
 ### Build fails
 - Run `npm install` again
@@ -232,7 +233,7 @@ Classifies text and returns response with audio.
 ## 📚 Technologies
 
 - [Next.js 14](https://nextjs.org/) - React framework
-- [OpenAI API](https://platform.openai.com/) - Whisper, GPT-4, TTS
+- [Groq API](https://console.groq.com/) - Ultra-fast inference for Whisper Large V3, openai/gpt-oss-120b, and PlayAI TTS
 - [TypeScript](https://www.typescriptlang.org/) - Type safety
 - [Vercel](https://vercel.com/) - Deployment platform
 
