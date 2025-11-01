@@ -185,35 +185,48 @@ async function normalizeAddress(address: string, originalText: string): Promise<
 
     const normalizationPrompt = `You are an expert on Norwegian addresses in Trondheim. Your task is to normalize and correct Norwegian street addresses.
 
-IMPORTANT: Handle common transcription errors:
-- "Stockbacken" (Swedish-like) → "Stokkbekken" (correct Norwegian)
-- "Halsesgatet" → "Dyre Halses gate"
-- Foreign-sounding spellings might be Norwegian streets with different spelling
+CRITICAL CORRECTIONS - Always apply these:
+1. "Stockbacken" → "Stokkbekken" (Swedish-like transcription error)
+2. "Stockbakken" → "Stokkbekken"
+3. "Halsesgatet" → "Dyre Halses gate"
 
-Known Trondheim addresses (since 2012+):
-- Stokkbekken (not "Stockbacken" or "Stockbakken")
-- Dyre Halses gate (not "Halsesgatet")
+Known Trondheim streets:
+- Stokkbekken (NEVER "Stockbacken", "Stockbakken", "Stock-backen")
+- Dyre Halses gate (NEVER "Halsesgatet")
 - Munkegata
 - Elgeseter gate
 
-Original command: "${originalText}"
-Extracted address: "${address}"
+Address to normalize: "${address}"
+Original voice command: "${originalText}"
 
-Your task:
-1. If address sounds Norwegian but spelled wrong, correct it (e.g., "Stockbacken" → "Stokkbekken")
-2. Expand abbreviations
-3. Add city "Trondheim" if missing
-4. Add postal code if you know it
-5. If address is completely unknown/invalid, return: "UNKNOWN: ${address}"
+RULES:
+1. Fix ALL street name spelling errors (especially Stockbacken → Stokkbekken)
+2. Use Norwegian format: "Street number, postalcode City"
+3. Always include "Trondheim" as city
+4. Add postal code if known
 
-Return ONLY the normalized address, nothing else. No explanations.
+ALWAYS fix these patterns:
+- If you see "Stockbacken" anywhere → replace with "Stokkbekken"
+- If you see "in Trondheim" → change to ", Trondheim"
+- If you see "at" → remove it
+
+Return ONLY the corrected address. No explanations.
 
 Examples:
-- "Halsesgatet 13" → "Dyre Halses gate 13, 7045 Trondheim"
-- "Stockbacken 32" → "Stokkbekken 32, Trondheim"
-- "Munkegata 5" → "Munkegata 5, 7013 Trondheim"
+Input: "Stockbacken 32 in Trondheim"
+Output: Stokkbekken 32, Trondheim
+
+Input: "Halsesgatet 13"
+Output: Dyre Halses gate 13, 7045 Trondheim
+
+Input: "Munkegata 5"
+Output: Munkegata 5, 7013 Trondheim
 
 Normalized address:`
+
+    console.log('📤 Sending to LLM for normalization...')
+    console.log('   Input address:', address)
+    console.log('   Original text:', originalText)
 
     const completion = await groq.chat.completions.create({
       model: 'openai/gpt-oss-120b',
@@ -226,7 +239,8 @@ Normalized address:`
     })
 
     const gptResult = completion.choices[0].message.content?.trim() || address
-    console.log('🤖 GPT normalized address:', gptResult)
+    console.log('📥 GPT raw response:', gptResult)
+    console.log('   Original input was:', address)
 
     // Clean up response - remove any explanation text
     const cleanedResult = gptResult
