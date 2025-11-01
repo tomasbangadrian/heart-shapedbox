@@ -312,34 +312,14 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // STEP 2 + 3: Parallelizer normalization OG TTS (uavhengige operasjoner!)
-      console.log('🚀 STEP 2+3: Running normalization AND TTS in parallel...')
+      // STEP 2: Normalization - Clean up query based on intent
+      console.log('🧹 STEP 2: Normalizing query...')
       console.log('Intent:', parsedResponse.intent)
       console.log('Original query:', parsedResponse.query)
 
       originalQuery = parsedResponse.query
+      const normalizeResult = await normalizeQuery(parsedResponse.intent, parsedResponse.query, text, userLibrary)
 
-      // Start begge operasjoner samtidig
-      const normalizationPromise = normalizeQuery(parsedResponse.intent, parsedResponse.query, text, userLibrary)
-
-      // TTS generation (tar ~500-800ms)
-      // @ts-ignore - Groq SDK type issue with audio.speech
-      const ttsPromise = groq.audio.speech.create({
-        model: 'playai-tts',
-        voice: 'Aaliyah-PlayAI',
-        response_format: 'wav',
-        input: parsedResponse.response,
-      })
-
-      // Kjør begge operasjoner parallelt med Promise.all
-      const [normalizeResult, ttsResponse] = await Promise.all([
-        normalizationPromise,
-        ttsPromise
-      ])
-
-      console.log('✅ Parallel operations completed!')
-
-      // Process normalization result
       parsedResponse.query = normalizeResult.query
 
       // Store Spotify track/artist for advanced search
@@ -369,82 +349,8 @@ export async function POST(request: NextRequest) {
       if (parsedResponse.intent === 'SPOTIFY' && !hasSpotify) {
         parsedResponse.response = 'You must log in to Spotify first to play music'
       }
-
-      // Process TTS result (already completed from Promise.all)
-      try {
-        // Convert audio to base64 data URL
-        const audioBuffer = Buffer.from(await ttsResponse.arrayBuffer())
-        const audioBase64 = audioBuffer.toString('base64')
-        const audioUrl = `data:audio/wav;base64,${audioBase64}`
-
-        console.log('✅ Response ready with parallel processing!')
-
-        return NextResponse.json({
-          response: parsedResponse.response,
-          audioUrl: audioUrl,
-          intent: parsedResponse.intent,
-          spotifyQuery: parsedResponse.query,
-          spotifyTrack: parsedResponse.spotifyTrack,
-          spotifyArtist: parsedResponse.spotifyArtist,
-          // Pipeline details for debugging
-          pipelineDetails: {
-            step1_transcription: text,
-            step2_classification: {
-              intent: parsedResponse.intent,
-              rawQuery: originalQuery || parsedResponse.query,
-            },
-            step3_parallelProcessing: {
-              normalization: {
-                originalQuery: originalQuery,
-                normalizedQuery: parsedResponse.query,
-                spotifyTrack: parsedResponse.spotifyTrack,
-                spotifyArtist: parsedResponse.spotifyArtist,
-                wasNormalized: originalQuery !== parsedResponse.query,
-              },
-              tts: {
-                model: 'playai-tts',
-                voice: 'Aaliyah-PlayAI',
-              }
-            },
-            step4_finalResponse: parsedResponse.response,
-            performanceNote: '⚡ Normalization + TTS ran in parallel!',
-          },
-        })
-      } catch (audioProcessError: any) {
-        console.error('❌ Audio processing error:', audioProcessError.message)
-        // Return response without audio if audio processing fails
-        return NextResponse.json({
-          response: parsedResponse.response,
-          audioUrl: null,
-          intent: parsedResponse.intent,
-          spotifyQuery: parsedResponse.query,
-          spotifyTrack: parsedResponse.spotifyTrack,
-          spotifyArtist: parsedResponse.spotifyArtist,
-          // Pipeline details for debugging
-          pipelineDetails: {
-            step1_transcription: text,
-            step2_classification: {
-              intent: parsedResponse.intent,
-              rawQuery: originalQuery || parsedResponse.query,
-            },
-            step3_parallelProcessing: {
-              normalization: {
-                originalQuery: originalQuery,
-                normalizedQuery: parsedResponse.query,
-                spotifyTrack: parsedResponse.spotifyTrack,
-                spotifyArtist: parsedResponse.spotifyArtist,
-                wasNormalized: originalQuery !== parsedResponse.query,
-              },
-              tts: {
-                error: audioProcessError.message,
-              }
-            },
-            step4_finalResponse: parsedResponse.response,
-          },
-        })
-      }
     } catch (chatError: any) {
-      console.error('❌ Parallel processing error:', chatError)
+      console.error('❌ Groq API error:', chatError)
       console.error('Error details:', {
         message: chatError.message,
         status: chatError.status,
@@ -452,20 +358,81 @@ export async function POST(request: NextRequest) {
         code: chatError.code
       })
 
-      // Fallback response if parallel processing fails
-      parsedResponse = parsedResponse || {
+      // Fallback response if Groq fails
+      parsedResponse = {
         intent: 'OTHER',
-        response: `Error with parallel processing: ${chatError.message || 'Unknown error'}. Check console for details.`,
+        response: `Error with Groq: ${chatError.message || 'Unknown error'}. Check console for details.`,
         query: null
       }
+    }
 
-      // Return error response
+    // Generate TTS audio
+    try {
+      console.log('🔊 Generating TTS audio...')
+      const ttsResponse = await groq.audio.speech.create({
+        model: 'playai-tts',
+        voice: 'Aaliyah-PlayAI',
+        response_format: 'wav',
+        input: parsedResponse.response,
+      })
+
+      // Convert audio to base64 data URL
+      const audioBuffer = Buffer.from(await ttsResponse.arrayBuffer())
+      const audioBase64 = audioBuffer.toString('base64')
+      const audioUrl = `data:audio/wav;base64,${audioBase64}`
+
+      console.log('✅ Response ready')
+
+      return NextResponse.json({
+        response: parsedResponse.response,
+        audioUrl: audioUrl,
+        intent: parsedResponse.intent,
+        spotifyQuery: parsedResponse.query,
+        spotifyTrack: parsedResponse.spotifyTrack,
+        spotifyArtist: parsedResponse.spotifyArtist,
+        // Pipeline details for debugging
+        pipelineDetails: {
+          step1_transcription: text,
+          step2_classification: {
+            intent: parsedResponse.intent,
+            rawQuery: originalQuery || parsedResponse.query,
+          },
+          step3_normalization: {
+            originalQuery: originalQuery,
+            normalizedQuery: parsedResponse.query,
+            spotifyTrack: parsedResponse.spotifyTrack,
+            spotifyArtist: parsedResponse.spotifyArtist,
+            wasNormalized: originalQuery !== parsedResponse.query,
+          },
+          step4_finalResponse: parsedResponse.response,
+        },
+      })
+    } catch (ttsError: any) {
+      console.error('❌ TTS error:', ttsError.message)
+      // Return response without audio if TTS fails
       return NextResponse.json({
         response: parsedResponse.response,
         audioUrl: null,
         intent: parsedResponse.intent,
         spotifyQuery: parsedResponse.query,
-        error: chatError.message
+        spotifyTrack: parsedResponse.spotifyTrack,
+        spotifyArtist: parsedResponse.spotifyArtist,
+        // Pipeline details for debugging
+        pipelineDetails: {
+          step1_transcription: text,
+          step2_classification: {
+            intent: parsedResponse.intent,
+            rawQuery: originalQuery || parsedResponse.query,
+          },
+          step3_normalization: {
+            originalQuery: originalQuery,
+            normalizedQuery: parsedResponse.query,
+            spotifyTrack: parsedResponse.spotifyTrack,
+            spotifyArtist: parsedResponse.spotifyArtist,
+            wasNormalized: originalQuery !== parsedResponse.query,
+          },
+          step4_finalResponse: parsedResponse.response,
+        },
       })
     }
   } catch (error: any) {
