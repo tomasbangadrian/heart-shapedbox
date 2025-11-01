@@ -180,9 +180,35 @@ Output: {"track": "Eye", "artist": "The Smashing Pumpkins"}`
 
 // Normalize Norwegian addresses using GPT-4 reasoning
 async function normalizeAddress(address: string, originalText: string): Promise<string> {
+  // STEP 1: Pre-process critical corrections (hardcoded for reliability)
+  let preprocessedAddress = address
+
+  // Known transcription errors that MUST be fixed
+  const criticalCorrections: Record<string, string> = {
+    'Stockbacken': 'Stokkbekken',
+    'stockbacken': 'Stokkbekken',
+    'Stockbakken': 'Stokkbekken',
+    'stockbakken': 'Stokkbekken',
+    'Stock-backen': 'Stokkbekken',
+    'Halsesgatet': 'Dyre Halses gate',
+    'halsesgatet': 'Dyre Halses gate',
+  }
+
+  for (const [wrong, correct] of Object.entries(criticalCorrections)) {
+    if (preprocessedAddress.includes(wrong)) {
+      preprocessedAddress = preprocessedAddress.replace(new RegExp(wrong, 'gi'), correct)
+      console.log(`✨ Pre-corrected: "${wrong}" → "${correct}"`)
+    }
+  }
+
+  if (preprocessedAddress !== address) {
+    console.log(`🔧 After pre-processing: "${address}" → "${preprocessedAddress}"`)
+  }
+
   try {
     console.log('🏠 Normalizing address:', address)
 
+    // STEP 2: Use LLM for additional normalization (format, postal codes, etc)
     const normalizationPrompt = `You are an expert on Norwegian addresses in Trondheim. Your task is to normalize and correct Norwegian street addresses.
 
 CRITICAL CORRECTIONS - Always apply these:
@@ -196,7 +222,7 @@ Known Trondheim streets:
 - Munkegata
 - Elgeseter gate
 
-Address to normalize: "${address}"
+Address to normalize: "${preprocessedAddress}"
 Original voice command: "${originalText}"
 
 RULES:
@@ -225,7 +251,8 @@ Output: Munkegata 5, 7013 Trondheim
 Normalized address:`
 
     console.log('📤 Sending to LLM for normalization...')
-    console.log('   Input address:', address)
+    console.log('   Original address:', address)
+    console.log('   Pre-processed address:', preprocessedAddress)
     console.log('   Original text:', originalText)
 
     const completion = await groq.chat.completions.create({
@@ -238,9 +265,9 @@ Normalized address:`
       temperature: 0.1, // Very low for consistent corrections
     })
 
-    const gptResult = completion.choices[0].message.content?.trim() || address
+    const gptResult = completion.choices[0].message.content?.trim() || preprocessedAddress
     console.log('📥 GPT raw response:', gptResult)
-    console.log('   Original input was:', address)
+    console.log('   Pre-processed input was:', preprocessedAddress)
 
     // Clean up response - remove any explanation text
     const cleanedResult = gptResult
@@ -248,10 +275,10 @@ Normalized address:`
       .trim()
       .replace(/^["']|["']$/g, '') // Remove quotes
 
-    // If GPT says UNKNOWN, return just the address without explanation
+    // If GPT says UNKNOWN, return pre-processed address
     if (cleanedResult.startsWith('UNKNOWN:')) {
-      console.log('⚠️ Address not recognized by GPT')
-      return address // Return original rather than error message
+      console.log('⚠️ Address not recognized by GPT, returning pre-processed version')
+      return preprocessedAddress
     }
 
     console.log('✅ Final normalized address:', cleanedResult)
@@ -259,7 +286,8 @@ Normalized address:`
   } catch (error: any) {
     console.error('❌ Address normalization error:', error.message)
     console.error('Full error:', error)
-    return address
+    // Return pre-processed address on error (at least critical corrections were applied)
+    return preprocessedAddress
   }
 }
 
