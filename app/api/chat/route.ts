@@ -61,7 +61,19 @@ Examples of complete responses:
 ALWAYS respond with valid JSON.`
 
 // Normalize query based on intent using web search or reasoning
-async function normalizeQuery(intent: string, query: string | null, originalText: string, userLibrary?: any[]): Promise<{ query: string | null; spotifyTrack?: string; spotifyArtist?: string }> {
+async function normalizeQuery(
+  intent: string,
+  query: string | null,
+  originalText: string,
+  userLibrary?: any[]
+): Promise<{
+  query: string | null
+  spotifyTrack?: string
+  spotifyArtist?: string
+  webAnswer?: string
+  webSource?: string
+  webConfidence?: number
+}> {
   if (!query) return { query: null }
 
   try {
@@ -83,6 +95,27 @@ async function normalizeQuery(intent: string, query: string | null, originalText
         // Normalize Norwegian addresses
         const normalized = await normalizeAddress(query, originalText)
         return { query: normalized }
+      }
+
+      case 'QUESTION': {
+        // Use web search to get factual answers
+        console.log('🔍 Searching web for question:', query || originalText)
+        const webResult = await searchRecentWeb(query || originalText)
+
+        if (webResult.hasResults && webResult.topResult) {
+          console.log(`✅ Found answer (confidence: ${webResult.confidence}%)`)
+          console.log(`   ${webResult.topResult.snippet}`)
+
+          // Return the web snippet as enriched context
+          return {
+            query,
+            webAnswer: webResult.topResult.snippet,
+            webSource: webResult.topResult.link,
+            webConfidence: webResult.confidence
+          }
+        }
+
+        return { query }
       }
 
       default:
@@ -166,6 +199,17 @@ Output: {"track": "Eye", "artist": "The Smashing Pumpkins"}`
     const fullQuery = `${track} ${artist}`
     console.log(`✅ Normalized: Track="${track}", Artist="${artist}"`)
 
+    // OPTIONAL: Validate with web search for extra confidence
+    try {
+      const webResult = await searchRecentWeb(`${track} by ${artist}`)
+      if (webResult.hasResults) {
+        console.log(`🌐 Web validation: ${webResult.confidence}% confidence`)
+        console.log(`   Top result: ${webResult.topResult?.title || 'N/A'}`)
+      }
+    } catch (webError) {
+      console.log('⚠️ Web validation skipped (error or no API key)')
+    }
+
     return { track, artist, fullQuery }
   } catch (error: any) {
     console.error('❌ Spotify normalization error:', error.message)
@@ -175,6 +219,57 @@ Output: {"track": "Eye", "artist": "The Smashing Pumpkins"}`
       artist: '',
       fullQuery: query
     }
+  }
+}
+
+// Search recent web using Serper API
+async function searchRecentWeb(query: string): Promise<{ confidence: number; topResult: any; hasResults: boolean }> {
+  try {
+    if (!process.env.SERPER_API_KEY) {
+      console.log('⚠️ Serper API key not configured, skipping web search')
+      return { confidence: 0, topResult: null, hasResults: false }
+    }
+
+    console.log('🌐 Searching web for:', query)
+
+    const response = await fetch('https://google.serper.dev/search', {
+      method: 'POST',
+      headers: {
+        'X-API-KEY': process.env.SERPER_API_KEY,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        q: query,
+        num: 3 // Get top 3 results
+      })
+    })
+
+    if (!response.ok) {
+      console.error('❌ Serper API error:', response.status)
+      return { confidence: 0, topResult: null, hasResults: false }
+    }
+
+    const data = await response.json()
+
+    // Calculate confidence
+    let confidence = 0
+    if (data.organic && data.organic.length > 0) {
+      confidence = 50
+      if (data.organic.length >= 3) confidence += 20
+      if (data.knowledgeGraph) confidence += 15
+      if (data.answerBox) confidence += 15
+    }
+
+    console.log(`✅ Web search confidence: ${confidence}%`)
+
+    return {
+      confidence,
+      topResult: data.organic?.[0] || null,
+      hasResults: data.organic && data.organic.length > 0
+    }
+  } catch (error: any) {
+    console.error('❌ Web search error:', error.message)
+    return { confidence: 0, topResult: null, hasResults: false }
   }
 }
 
@@ -371,6 +466,17 @@ export async function POST(request: NextRequest) {
         console.log(`🎵 Extracted: Track="${normalizeResult.spotifyTrack}", Artist="${normalizeResult.spotifyArtist}"`)
       }
 
+      // Store web search results for QUESTION intent
+      if (normalizeResult.webAnswer) {
+        parsedResponse.webAnswer = normalizeResult.webAnswer
+        parsedResponse.webSource = normalizeResult.webSource
+        parsedResponse.webConfidence = normalizeResult.webConfidence
+        console.log(`🌐 Web answer found (${normalizeResult.webConfidence}% confidence)`)
+
+        // Update response with web-enriched answer
+        parsedResponse.response = `${normalizeResult.webAnswer} (Source: ${normalizeResult.webSource})`
+      }
+
       console.log('After normalization:', parsedResponse.query)
       console.log('Was normalized?', originalQuery !== parsedResponse.query)
 
@@ -436,6 +542,9 @@ export async function POST(request: NextRequest) {
         spotifyQuery: parsedResponse.query,
         spotifyTrack: parsedResponse.spotifyTrack,
         spotifyArtist: parsedResponse.spotifyArtist,
+        webAnswer: parsedResponse.webAnswer,
+        webSource: parsedResponse.webSource,
+        webConfidence: parsedResponse.webConfidence,
         // Pipeline details for debugging
         pipelineDetails: {
           step1_transcription: text,
@@ -448,6 +557,8 @@ export async function POST(request: NextRequest) {
             normalizedQuery: parsedResponse.query,
             spotifyTrack: parsedResponse.spotifyTrack,
             spotifyArtist: parsedResponse.spotifyArtist,
+            webAnswer: parsedResponse.webAnswer,
+            webConfidence: parsedResponse.webConfidence,
             wasNormalized: originalQuery !== parsedResponse.query,
           },
           step4_finalResponse: parsedResponse.response,
@@ -463,6 +574,9 @@ export async function POST(request: NextRequest) {
         spotifyQuery: parsedResponse.query,
         spotifyTrack: parsedResponse.spotifyTrack,
         spotifyArtist: parsedResponse.spotifyArtist,
+        webAnswer: parsedResponse.webAnswer,
+        webSource: parsedResponse.webSource,
+        webConfidence: parsedResponse.webConfidence,
         // Pipeline details for debugging
         pipelineDetails: {
           step1_transcription: text,
@@ -475,6 +589,8 @@ export async function POST(request: NextRequest) {
             normalizedQuery: parsedResponse.query,
             spotifyTrack: parsedResponse.spotifyTrack,
             spotifyArtist: parsedResponse.spotifyArtist,
+            webAnswer: parsedResponse.webAnswer,
+            webConfidence: parsedResponse.webConfidence,
             wasNormalized: originalQuery !== parsedResponse.query,
           },
           step4_finalResponse: parsedResponse.response,
