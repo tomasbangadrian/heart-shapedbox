@@ -7,9 +7,11 @@ An intelligent voice assistant built with Next.js, Groq Whisper, and Groq LLM. T
 - 🎙️ **Voice Recording**: Press and hold the button to speak
 - 🗣️ **Speech-to-Text**: Uses Groq Whisper Large V3 for ultra-fast speech to text conversion
 - 🤖 **Intent Classification**: Groq's openai/gpt-oss-120b classifies your command (Spotify, navigation, purchase, door opening, volume control, questions, etc.)
+- 🌐 **Web Search Integration**: Real-time web search via Serper.dev for factual questions and validation
 - 🔊 **Text-to-Speech**: Get audio responses back with Groq PlayAI TTS
 - 🎵 **Spotify Integration**: Real Spotify Web Playback - play music directly in your browser!
 - 💬 **Conversation History**: See all your previous commands and responses
+- 📊 **Confidence Scoring**: Multi-source validation for higher accuracy
 
 ## 🎯 Supported Commands
 
@@ -56,7 +58,10 @@ The assistant can handle:
    SPOTIFY_CLIENT_SECRET=your-spotify-client-secret
    SPOTIFY_REDIRECT_URI=http://localhost:3000/api/spotify/callback
    NEXT_PUBLIC_BASE_URL=http://localhost:3000
+   SERPER_API_KEY=your-serper-api-key-here  # Optional: for web search
    ```
+
+   **Note**: Web search is optional. Get a free Serper API key (50 searches/month) at [serper.dev](https://serper.dev)
 
 4. **Start the development server**:
    ```bash
@@ -107,6 +112,46 @@ To get Spotify integration working, you need to set up a Spotify Developer App:
 
 **Important**: Spotify Web Playback SDK requires you to have **Spotify Premium**!
 
+## 🌐 Web Search Setup (Optional)
+
+The assistant can answer factual questions using real-time web search via Serper.dev:
+
+### Step 1: Get Serper API Key
+
+1. Go to [serper.dev](https://serper.dev)
+2. Sign up (no credit card required)
+3. Get your API key from the dashboard
+4. Free tier: 50 searches per month
+
+### Step 2: Add to Environment
+
+Add to your `.env.local`:
+```
+SERPER_API_KEY=your-api-key-here
+```
+
+For Vercel deployment, add `SERPER_API_KEY` to environment variables in Vercel dashboard.
+
+### Step 3: Test Web Search
+
+Try asking:
+- "What is the population of Paris?"
+- "Who won the Super Bowl in 2024?"
+- "What is the weather in Trondheim?"
+
+The assistant will:
+1. Search the web in real-time
+2. Return the answer with source
+3. Show confidence score in logs
+
+**Benefits:**
+- ✅ Validates Spotify queries (confirms artist/song exists)
+- ✅ Answers factual questions with current data
+- ✅ Confidence scoring for result quality
+- ✅ Graceful fallback if web search fails
+
+See [WEB_SEARCH_SETUP.md](./WEB_SEARCH_SETUP.md) for detailed setup guide.
+
 ## 📦 Deploy to Vercel
 
 ### Method 1: Via Vercel Dashboard (Recommended)
@@ -121,6 +166,7 @@ To get Spotify integration working, you need to set up a Spotify Developer App:
    - `SPOTIFY_CLIENT_SECRET`: Your Spotify Client Secret
    - `SPOTIFY_REDIRECT_URI`: `https://your-app.vercel.app/api/spotify/callback`
    - `NEXT_PUBLIC_BASE_URL`: `https://your-app.vercel.app`
+   - `SERPER_API_KEY`: Your Serper API key (optional, for web search)
 6. Click "Deploy"
 
 ### Method 2: Via Vercel CLI
@@ -165,18 +211,30 @@ heart-shapedbox/
 │   ├── api/
 │   │   ├── whisper/        # Whisper API endpoint (STT)
 │   │   │   └── route.ts
-│   │   └── chat/           # ChatGPT API endpoint (classification + TTS)
-│   │       └── route.ts
+│   │   ├── chat/           # LLM API endpoint (classification + normalization + TTS)
+│   │   │   └── route.ts
+│   │   ├── search/
+│   │   │   └── web/        # Web search API endpoint (Serper)
+│   │   │       └── route.ts
+│   │   └── spotify/        # Spotify API endpoints
+│   │       ├── login/
+│   │       ├── callback/
+│   │       ├── search/
+│   │       ├── play/
+│   │       └── library/
 │   ├── layout.tsx          # Root layout
 │   ├── page.tsx            # Main page
 │   └── globals.css         # Global styles
 ├── components/
-│   └── VoiceRecorder.tsx   # Main component for voice recording
+│   ├── VoiceRecorder.tsx   # Main voice recording component
+│   └── SpotifyPlayer.tsx   # Spotify Web Playback SDK component
 ├── public/                 # Static files
-├── .env.example           # Example environment variables
-├── next.config.js         # Next.js configuration
-├── package.json           # Dependencies
-└── tsconfig.json          # TypeScript configuration
+├── .env.example            # Example environment variables
+├── WEB_SEARCH_SETUP.md     # Web search integration guide
+├── IMPLEMENTATION_GAP_ANALYSIS.md  # Architecture analysis
+├── next.config.js          # Next.js configuration
+├── package.json            # Dependencies
+└── tsconfig.json           # TypeScript configuration
 ```
 
 ## 🔧 Customization
