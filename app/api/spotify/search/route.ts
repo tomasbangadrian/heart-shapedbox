@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { buildSpotifyTrackSearch } from '@/lib/spotifySearch'
 
 export async function POST(request: NextRequest) {
   try {
@@ -14,37 +15,16 @@ export async function POST(request: NextRequest) {
     console.log('🔍 Spotify search query:', query)
     console.log('🎵 Track:', trackName, 'Artist:', artistName)
 
-    let searchQuery = query
+    const { searchQuery, track, artist } = buildSpotifyTrackSearch({
+      query,
+      trackName,
+      artistName,
+    })
 
-    // If we have separate track and artist, use them for better search
-    if (trackName && artistName) {
-      // Use Spotify's advanced search syntax for precise matching
-      // https://developer.spotify.com/documentation/web-api/reference/search
-      searchQuery = `track:"${trackName}" artist:"${artistName}"`
-      console.log('🎯 Using advanced search with extracted data:', searchQuery)
+    if (track && artist) {
+      console.log('🎯 Using advanced search with track/artist:', searchQuery)
     } else {
-      // Fallback: try to parse query into track and artist
-      // Format: "song title artist name" or "song title by artist name"
-      const byMatch = query.match(/(.+?)\s+(?:by\s+)?(.+)/)
-
-      if (byMatch && byMatch.length >= 3) {
-        const trackName = byMatch[1].trim()
-        const artistName = byMatch[2].trim()
-
-        searchQuery = `track:"${trackName}" artist:"${artistName}"`
-        console.log('🎯 Using advanced search (parsed):', searchQuery)
-      } else {
-        // Fallback: try to extract last 2-3 words as artist
-        const words = query.split(' ')
-        if (words.length >= 3) {
-          // Assume last 2-3 words are artist, rest is track
-          const trackWords = words.slice(0, -2)
-          const artistWords = words.slice(-2)
-
-          searchQuery = `track:"${trackWords.join(' ')}" artist:"${artistWords.join(' ')}"`
-          console.log('🎯 Guessing track/artist split:', searchQuery)
-        }
-      }
+      console.log('🔎 Falling back to broad search:', searchQuery)
     }
 
     // Search for tracks on Spotify
