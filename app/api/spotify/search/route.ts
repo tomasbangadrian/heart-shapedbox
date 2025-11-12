@@ -15,13 +15,13 @@ export async function POST(request: NextRequest) {
     console.log('🔍 Spotify search query:', query)
     console.log('🎵 Track:', trackName, 'Artist:', artistName)
 
-    const { searchQuery, track, artist } = buildSpotifyTrackSearch({
+    const { searchQuery, track: parsedTrack, artist } = buildSpotifyTrackSearch({
       query,
       trackName,
       artistName,
     })
 
-    if (track && artist) {
+    if (parsedTrack && artist) {
       console.log('🎯 Using advanced search with track/artist:', searchQuery)
     } else {
       console.log('🔎 Falling back to broad search:', searchQuery)
